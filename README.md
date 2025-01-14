@@ -3,7 +3,9 @@
 
 **Codeprinter** is a local tool designed for quickly selecting and packaging files from GitHub and local repositories, allowing for easy copy/pasting with chat-based LLMs.
 
-This was made possible thanks to Abin Thomas open-sourcing https://github.com/abinthomasonline/repo2txt as a base, so I am open-sourcing this to pass it forward. Thank you, Abin! My main change was converting the app to be a uv flash executable, and making local mode by just passing a local path instead of a zip file.
+This was made possible thanks to Abin Thomas open-sourcing https://github.com/abinthomasonline/repo2txt as a base, so I am open-sourcing this to pass it forward. Thank you, Abin! My main change was converting the app to be a uv flask executable app, and making local mode work by just passing a local path instead of a zip file.
+
+NOTE: The local path only works if the filesystem is in same location as the code running. So when I am coding on a Windows using WSL, I can only pass local WSL repos, and when coding on Windows I can pass local Windows repos.
 
 ## Quick Start
 
