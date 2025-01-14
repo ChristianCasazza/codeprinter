@@ -31,7 +31,7 @@ For more details, refer to the [uv documentation](https://docs.astral.sh/uv/gett
 ## Configuration
 
 ### Excluding Folders
-At the bottom of `app.py`, you’ll find the `skip_dirs` variable, which lists directories to exclude from the UI. By default, it includes:
+within the `app.py`, you’ll find the `skip_dirs` variable, which lists directories to exclude from the UI. By default, it includes:
 - `.venv`
 - `node_modules`
 - `.git`

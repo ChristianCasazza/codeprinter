@@ -1,10 +1,5 @@
-# /// script
-# requires-python = ">=3.11"
-# dependencies = [
-#     "flask",
-#     "requests",
-# ]
-# ///
+# app.py
+
 import os
 import re
 import json
@@ -22,6 +17,7 @@ app = Flask(__name__)
 def index():
     """Serve the front-end HTML."""
     return render_template("index.html")
+
 
 ##############################################################################
 # 2) Local Mode: Build directory tree from a given path
@@ -49,6 +45,7 @@ def local_tree():
     if not os.path.exists(local_path):
         return jsonify({"error": f"Path does not exist: {local_path}"}), 404
 
+    skip_dirs = {".venv", "node_modules", ".git", ".vscode", ".evidence", "target"}
     result_tree = []
     for root, dirs, files in os.walk(local_path):
         # Remove the skip_dirs from the directory list
@@ -64,6 +61,7 @@ def local_tree():
             })
 
     return jsonify(result_tree)
+
 
 ##############################################################################
 # 3) Local Mode: Return the contents of selected files
@@ -97,6 +95,7 @@ def local_file_contents():
 
     return jsonify(contents)
 
+
 ##############################################################################
 # 4) Local Mode: Download Zip of selected files
 ##############################################################################
@@ -123,6 +122,7 @@ def local_zip():
         as_attachment=True,
         download_name="partial_repo.zip"
     )
+
 
 ##############################################################################
 # 5) GitHub Mode: Fetch Directory Structure (tree)
@@ -169,6 +169,7 @@ def github_tree():
             })
     return jsonify(result_tree)
 
+
 ##############################################################################
 # 6) GitHub Mode: Fetch File Contents
 ##############################################################################
@@ -188,6 +189,7 @@ def github_file_contents():
         except Exception as e:
             result.append({"path": path, "text": f"Error: {e}"})
     return jsonify(result)
+
 
 ##############################################################################
 # 7) GitHub Mode: Download ZIP of selected files
@@ -217,11 +219,12 @@ def github_zip():
         download_name="partial_repo.zip"
     )
 
+
 ##############################################################################
 # Helper functions for GitHub logic
 ##############################################################################
 def parse_repo_url(url: str):
-    pattern = r"^https://github\\.com/([^/]+)/([^/]+)(/tree/(.+))?$"
+    pattern = r"^https://github\.com/([^/]+)/([^/]+)(/tree/(.+))?$"
     match = re.match(pattern, url)
     if not match:
         raise ValueError("Invalid GitHub URL. Must be https://github.com/owner/repo or /tree/branch/path")
@@ -287,8 +290,6 @@ def handle_github_error(response):
     else:
         raise ValueError(f"GitHub request failed. Status: {response.status_code}")
 
-# Define skip directories at the bottom for convenience
-skip_dirs = {".venv", "node_modules", ".git", ".vscode", ".evidence", "target"}
 
 if __name__ == "__main__":
     app.run(debug=True)
