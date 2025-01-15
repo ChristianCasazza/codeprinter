@@ -1,3 +1,10 @@
+# /// script
+# requires-python = ">=3.11"
+# dependencies = [
+#     "flask",
+#     "requests",
+# ]
+# ///
 # app.py
 
 import os
