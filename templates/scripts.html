@@ -1,0 +1,521 @@
+<!-- templates/scripts.html -->
+
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const githubModeDiv = document.getElementById('githubMode');
+    const localModeDiv = document.getElementById('localMode');
+    const progressContainerTop = document.getElementById('progressTop');
+    const progressBarTop = document.getElementById('progressTopBar');
+    const celebrationTop = document.getElementById('progressTopCelebration');
+    const progressContainerBottom = document.getElementById('progressBottom');
+    const progressBarBottom = document.getElementById('progressBottomBar');
+    const celebrationBottom = document.getElementById('progressBottomCelebration');
+    const groupingControls = document.getElementById('groupingControls');
+    let currentTree = [];
+    let isGithub = false;
+    let basePath = '';
+    const ALLOWED_EXTENSIONS = ['.json', '.py', '.js', '.ts', '.sql', '.yml', '.yaml', '.tsx', '.css', '.html', '.txt', '.toml'];
+    const EXT_COLORS = {
+      'json': '#f97316', 'py': '#3572A5', 'js': '#f1e05a', 'ts': '#2b7489', 'sql': '#336791',
+      'yml': '#cb171e', 'yaml': '#cb171e', 'tsx': '#2b7489', 'css': '#563d7c', 'html': '#e34c26', 
+      'txt': '#4b5563', 'toml': '#9c4221'
+    };
+
+    document.getElementById('githubTabBtn').addEventListener('click', () => toggleMode(true));
+    document.getElementById('localTabBtn').addEventListener('click', () => toggleMode(false));
+    function toggleMode(github) {
+      githubModeDiv.classList.toggle('hidden', !github);
+      localModeDiv.classList.toggle('hidden', github);
+      document.getElementById('githubTabBtn').classList.toggle('tab-active', github);
+      document.getElementById('localTabBtn').classList.toggle('tab-active', !github);
+    }
+
+    async function fetchData(endpoint, data, isGenerate = false) {
+      const progressContainer = isGenerate ? progressContainerBottom : progressContainerTop;
+      const progressBar = isGenerate ? progressBarBottom : progressBarTop;
+      const celebration = isGenerate ? celebrationBottom : celebrationTop;
+
+      if (progressContainer && progressBar && celebration) {
+        progressContainer.classList.remove('hidden');
+        progressBar.style.width = '0%';
+      }
+
+      try {
+        const res = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        });
+        if (progressBar) progressBar.style.width = '100%';
+        const result = await res.json();
+        if (result.error) {
+          console.error("API error:", result.error, { endpoint, data });
+          throw new Error(result.error);
+        }
+
+        if (progressContainer && celebration) {
+          celebration.classList.remove('hidden');
+          setTimeout(() => {
+            celebration.classList.add('hidden');
+            progressContainer.classList.add('hidden');
+          }, 500);
+        }
+
+        return result;
+      } catch (err) {
+        console.error("Fetch error:", err.message, { endpoint, data });
+        if (progressContainer) progressContainer.classList.add('hidden');
+        throw err;
+      }
+    }
+
+    document.getElementById('fetchGitHub').addEventListener('click', async () => {
+      const repoUrl = document.getElementById('repoUrl').value.trim();
+      if (!repoUrl) return alert("Enter a GitHub URL.");
+      isGithub = true;
+      basePath = repoUrl;
+      try {
+        const data = { repoUrl };
+        {% if not has_github_token %}
+        data.accessToken = document.getElementById('accessToken').value.trim();
+        {% endif %}
+        currentTree = await fetchData('/api/github-tree', data);
+        displayDirectoryStructure(currentTree);
+        showActionButtons();
+        await loadGroupings();
+      } catch (err) {
+        alert("Error: " + err.message);
+      }
+    });
+
+    document.getElementById('fetchLocal').addEventListener('click', async () => {
+      const localPath = document.getElementById('localPath').value.trim();
+      if (!localPath) return alert("Enter a local path.");
+      isGithub = false;
+      basePath = localPath;
+      try {
+        currentTree = await fetchData('/api/local-tree', { localPath });
+        displayDirectoryStructure(currentTree);
+        showActionButtons();
+        await loadGroupings();
+      } catch (err) {
+        alert("Error: " + err.message);
+      }
+    });
+
+    function showActionButtons() {
+      document.getElementById('generateTextButton').classList.remove('hidden');
+      document.getElementById('generateFullTextButton').classList.remove('hidden');
+      groupingControls.classList.remove('hidden');
+      document.getElementById('outputText').value = '';
+    }
+
+    function displayDirectoryStructure(tree) {
+      const container = document.getElementById('directoryStructure');
+      const extContainer = document.getElementById('extBubbleContainer');
+      container.innerHTML = '';
+      extContainer.innerHTML = '';
+      if (!tree.length) {
+        container.textContent = 'No files found.';
+        return;
+      }
+
+      const filtered = tree.filter(item => ALLOWED_EXTENSIONS.some(ext => item.path.toLowerCase().endsWith(ext)));
+      filtered.sort((a, b) => a.path.localeCompare(b.path));
+
+      const directoryStructure = {};
+      const extensionMap = new Map();
+
+      filtered.forEach(item => {
+        const pathParts = item.path.split('/').filter(part => part);
+        let currentLevel = directoryStructure;
+        pathParts.forEach((part, index) => {
+          if (!currentLevel[part]) {
+            currentLevel[part] = (index === pathParts.length - 1) ? item : {};
+          }
+          currentLevel = currentLevel[part];
+        });
+
+        const ext = item.path.split('.').pop().toLowerCase();
+        if (!extensionMap.has(ext)) {
+          extensionMap.set(ext, []);
+        }
+        extensionMap.get(ext).push(item);
+      });
+
+      const rootUl = document.createElement('ul');
+      rootUl.classList.add('tree-lines');
+      container.appendChild(rootUl);
+
+      function createTreeNode(name, item, parentUl, depth = 0) {
+        const li = document.createElement('li');
+        li.className = 'relative';
+        li.style.marginLeft = `${depth * 1}rem`;
+        parentUl.appendChild(li);
+
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.className = 'checkbox checkbox-sm mr-2';
+
+        if (typeof item === 'object' && !item.id) {
+          // FOLDER
+          const details = document.createElement('details');
+          details.open = true;
+          const summary = document.createElement('summary');
+          summary.innerHTML = '📁 ' + name;
+          summary.className = 'font-bold';
+          details.appendChild(summary);
+          li.appendChild(details);
+
+          const ul = document.createElement('ul');
+          ul.classList.add('tree-lines');
+          details.appendChild(ul);
+
+          checkbox.classList.add('folder-checkbox');
+          li.insertBefore(checkbox, details);
+
+          for (const [childName, childItem] of Object.entries(item)) {
+            createTreeNode(childName, childItem, ul, depth + 1);
+          }
+
+          checkbox.addEventListener('change', () => {
+            const childCheckboxes = li.querySelectorAll('input[type="checkbox"]');
+            childCheckboxes.forEach(cb => {
+              cb.checked = checkbox.checked;
+              cb.indeterminate = false;
+            });
+            updateParentCheckbox(checkbox);
+            updateExtensionBubbles();
+          });
+        } else {
+          // FILE
+          checkbox.value = JSON.stringify(item);
+          li.appendChild(checkbox);
+          li.appendChild(document.createTextNode(name));
+
+          const ext = name.split('.').pop().toLowerCase();
+          extensionMap.get(ext).forEach(file => {
+            if (file.id === item.id) {
+              file.checkbox = checkbox;
+            }
+          });
+        }
+
+        checkbox.addEventListener('change', () => {
+          updateParentCheckbox(checkbox);
+          updateExtensionBubbles();
+        });
+      }
+
+      function updateParentCheckbox(checkbox) {
+        const li = checkbox.closest('li');
+        if (!li) return;
+        const parentLi = li.parentElement.closest('li');
+        if (!parentLi) return;
+        const parentCheckbox = parentLi.querySelector(':scope > input[type="checkbox"]');
+        if (!parentCheckbox) return;
+
+        const siblingCheckboxes = parentLi.querySelectorAll(':scope > ul input[type="checkbox"]');
+        const checkedCount = Array.from(siblingCheckboxes).filter(cb => cb.checked).length;
+        const totalCount = siblingCheckboxes.length;
+
+        if (checkedCount === 0) {
+          parentCheckbox.checked = false;
+          parentCheckbox.indeterminate = false;
+        } else if (checkedCount === totalCount) {
+          parentCheckbox.checked = true;
+          parentCheckbox.indeterminate = false;
+        } else {
+          parentCheckbox.checked = false;
+          parentCheckbox.indeterminate = true;
+        }
+        updateParentCheckbox(parentCheckbox);
+      }
+
+      for (const [name, item] of Object.entries(directoryStructure)) {
+        createTreeNode(name, item, rootUl);
+      }
+
+      const allBubble = document.createElement('span');
+      allBubble.className = 'ext-bubble selected';
+      allBubble.style.backgroundColor = '#4b5563';
+      allBubble.textContent = `All (${filtered.length})`;
+      allBubble.addEventListener('click', () => {
+        const isSelected = !allBubble.classList.contains('selected');
+        allBubble.classList.toggle('selected', isSelected);
+        extContainer.querySelectorAll('.ext-bubble:not(#allBubble)').forEach(bubble => {
+          bubble.classList.toggle('selected', isSelected);
+          const ext = bubble.dataset.ext;
+          extensionMap.get(ext)?.forEach(file => {
+            if (file.checkbox) {
+              file.checkbox.checked = isSelected;
+              updateParentCheckbox(file.checkbox);
+            }
+          });
+        });
+      });
+      allBubble.id = 'allBubble';
+      extContainer.appendChild(allBubble);
+
+      extensionMap.forEach((files, ext) => {
+        const bubble = document.createElement('span');
+        bubble.className = 'ext-bubble selected';
+        bubble.style.backgroundColor = EXT_COLORS[ext] || '#4b5563';
+        bubble.textContent = `.${ext} (${files.length})`;
+        bubble.dataset.ext = ext;
+        bubble.addEventListener('click', () => {
+          const isSelected = !bubble.classList.contains('selected');
+          bubble.classList.toggle('selected', isSelected);
+          files.forEach(file => {
+            if (file.checkbox) {
+              file.checkbox.checked = isSelected;
+              updateParentCheckbox(file.checkbox);
+            }
+          });
+          updateAllBubble();
+        });
+        extContainer.appendChild(bubble);
+      });
+
+      function updateAllBubble() {
+        const allSelected = Array.from(extContainer.querySelectorAll('.ext-bubble:not(#allBubble)'))
+          .every(bubble => bubble.classList.contains('selected'));
+        allBubble.classList.toggle('selected', allSelected);
+      }
+
+      function updateExtensionBubbles() {
+        const selectedFiles = getSelectedFiles();
+        const selectedExts = new Set(selectedFiles.map(file => file.path.split('.').pop().toLowerCase()));
+        extContainer.querySelectorAll('.ext-bubble:not(#allBubble)').forEach(bubble => {
+          const ext = bubble.dataset.ext;
+          bubble.classList.toggle('selected', selectedExts.has(ext));
+        });
+        updateAllBubble();
+      }
+
+      const lineHeight = 24;
+      const padding = 32;
+      const totalHeight = (filtered.length * lineHeight) + padding;
+      container.style.height = `${Math.max(768, totalHeight)}px`;
+
+      container.addEventListener('change', (e) => {
+        if (e.target.type === 'checkbox' && !e.target.classList.contains('folder-checkbox')) {
+          updateParentCheckbox(e.target);
+          updateExtensionBubbles();
+        }
+      });
+
+      updateExtensionBubbles(); // Initial update
+    }
+
+    document.getElementById('generateTextButton').addEventListener('click', async () => {
+      const selected = getSelectedFiles();
+      if (!selected.length) return alert("No files selected.");
+      const data = { repoIdentifier: basePath, fileIds: selected.map(f => f.id) };
+      {% if not has_github_token %}
+      if (isGithub) data.accessToken = document.getElementById('accessToken').value.trim();
+      {% endif %}
+      try {
+        const contents = await fetchData('/api/file-contents', data, true);
+        document.getElementById('outputText').value = formatRepoContents(contents, selected);
+        document.getElementById('copyButton').classList.remove('hidden');
+        document.getElementById('downloadButton').classList.remove('hidden');
+      } catch (err) {
+        alert("Error: " + err.message);
+      }
+    });
+
+    document.getElementById('generateFullTextButton').addEventListener('click', async () => {
+      const selected = getSelectedFiles();
+      const allFileIds = currentTree.map(f => f.id);
+      const data = { repoIdentifier: basePath, fileIds: allFileIds };
+      {% if not has_github_token %}
+      if (isGithub) data.accessToken = document.getElementById('accessToken').value.trim();
+      {% endif %}
+      try {
+        const contents = await fetchData('/api/file-contents', data, true);
+        document.getElementById('outputText').value = formatFullRepoContents(contents, selected);
+        document.getElementById('copyButton').classList.remove('hidden');
+        document.getElementById('downloadButton').classList.remove('hidden');
+      } catch (err) {
+        alert("Error: " + err.message);
+      }
+    });
+
+    document.getElementById('saveGrouping').addEventListener('click', async () => {
+      const groupingName = document.getElementById('groupingName').value.trim();
+      const selected = getSelectedFiles();
+      if (!groupingName) return alert("Enter a grouping name.");
+      if (!selected.length) return alert("No files selected to save in grouping.");
+      const data = { repoIdentifier: basePath, groupingName, fileIds: selected.map(f => f.id) };
+      try {
+        const result = await fetchData('/api/save-grouping', data);
+        alert(result.message);
+        await loadGroupings();
+      } catch (err) {
+        alert("Error saving grouping: " + err.message);
+      }
+    });
+
+    document.getElementById('loadGrouping').addEventListener('click', () => {
+      const selectedName = document.getElementById('groupingSelect').value;
+      if (!selectedName) return alert("Please select a grouping to load.");
+
+      const allCheckboxes = document.querySelectorAll('#directoryStructure input[type="checkbox"]');
+      allCheckboxes.forEach(cb => {
+        cb.checked = false;
+        cb.indeterminate = false;
+      });
+
+      const grouping = groupings.find(g => g.name === selectedName);
+      if (grouping && grouping.files.length) {
+        grouping.files.forEach(file => {
+          const cb = Array.from(document.querySelectorAll('#directoryStructure input[type="checkbox"]'))
+            .find(c => {
+              const val = c.value ? JSON.parse(c.value) : {};
+              return val.id === file.id && val.path === file.path;
+            });
+          if (cb) {
+            cb.checked = true;
+            updateParentCheckbox(cb);
+          } else {
+            console.warn(`Checkbox not found for file: ${file.path} (ID: ${file.id})`);
+          }
+        });
+        updateExtensionBubbles();
+      } else {
+        alert("No files found in this grouping or grouping not loaded correctly.");
+      }
+    });
+
+    let groupings = [];
+    async function loadGroupings() {
+      try {
+        const result = await fetchData('/api/get-groupings', { repoIdentifier: basePath });
+        groupings = result.groupings;
+        const select = document.getElementById('groupingSelect');
+        select.innerHTML = '<option value="">Select a saved grouping</option>';
+        groupings.forEach(g => {
+          const option = document.createElement('option');
+          option.value = g.name;
+          option.textContent = g.name;
+          select.appendChild(option);
+        });
+      } catch (err) {
+        alert("Error loading groupings: " + err.message);
+      }
+    }
+
+    function getSelectedFiles() {
+      return Array.from(document.querySelectorAll('#directoryStructure input[type="checkbox"]:checked:not(.folder-checkbox)'))
+        .map(cb => JSON.parse(cb.value));
+    }
+
+    function formatRepoContents(contents, selected) {
+      contents.sort((a, b) => a.path.localeCompare(b.path));
+      let output = 'Directory Structure (Selected Files):\n\n' + contents.map(c => `├── ${c.path}`).join('\n');
+      output += contents.map(c => `\n\n---\nFile: ${c.path}\n---\n\n${c.text}`).join('');
+
+      // Token counting fallback check:
+      try {
+        if (typeof GPTTokenizer_cl100k_base !== 'undefined') {
+          const tokens = GPTTokenizer_cl100k_base.encode(output).length;
+          document.getElementById('tokenCount').textContent = `Approx Token Count: ${tokens}`;
+        }
+      } catch (err) {
+        console.error("Token count error or tokenizer not loaded:", err);
+      }
+      return output;
+    }
+
+    function formatFullRepoContents(contents, selected) {
+      contents.sort((a, b) => a.path.localeCompare(b.path));
+      const selectedPaths = new Set(selected.map(f => f.path));
+
+      let output = 'Full Directory Structure:\n\n' +
+        contents.map(c => `${selectedPaths.has(c.path) ? '├──' : '└──'} ${c.path}`).join('\n');
+
+      output += '\n\nSelected Files:\n' + 
+        contents
+          .filter(c => selectedPaths.has(c.path))
+          .map(c => `\n---\nFile: ${c.path}\n---\n\n${c.text}`)
+          .join('');
+
+      // Token counting fallback check:
+      try {
+        if (typeof GPTTokenizer_cl100k_base !== 'undefined') {
+          const tokens = GPTTokenizer_cl100k_base.encode(output).length;
+          document.getElementById('tokenCount').textContent = `Approx Token Count: ${tokens}`;
+        }
+      } catch (err) {
+        console.error("Token count error or tokenizer not loaded:", err);
+      }
+      return output;
+    }
+
+    document.getElementById('copyButton').addEventListener('click', () => {
+      const text = document.getElementById('outputText').value;
+      navigator.clipboard.writeText(text).then(() => console.log("Copied."));
+    });
+
+    document.getElementById('downloadButton').addEventListener('click', () => {
+      const text = document.getElementById('outputText').value;
+      if (!text.trim()) return alert("No content to download.");
+      downloadBlob(new Blob([text], { type: 'text/plain' }), 'prompt.txt');
+    });
+
+    function downloadBlob(blob, filename) {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    // Helper to update parent checkbox
+    function updateParentCheckbox(checkbox) {
+      const li = checkbox.closest('li');
+      if (!li) return;
+      const parentLi = li.parentElement.closest('li');
+      if (!parentLi) return;
+      const parentCheckbox = parentLi.querySelector(':scope > input[type="checkbox"]');
+      if (!parentCheckbox) return;
+
+      const siblingCheckboxes = parentLi.querySelectorAll(':scope > ul input[type="checkbox"]');
+      const checkedCount = Array.from(siblingCheckboxes).filter(cb => cb.checked).length;
+      const totalCount = siblingCheckboxes.length;
+
+      if (checkedCount === 0) {
+        parentCheckbox.checked = false;
+        parentCheckbox.indeterminate = false;
+      } else if (checkedCount === totalCount) {
+        parentCheckbox.checked = true;
+        parentCheckbox.indeterminate = false;
+      } else {
+        parentCheckbox.checked = false;
+        parentCheckbox.indeterminate = true;
+      }
+      updateParentCheckbox(parentCheckbox);
+    }
+
+    function updateExtensionBubbles() {
+      const extContainer = document.getElementById('extBubbleContainer');
+      const selectedFiles = getSelectedFiles();
+      const selectedExts = new Set(selectedFiles.map(file => file.path.split('.').pop().toLowerCase()));
+      extContainer.querySelectorAll('.ext-bubble:not(#allBubble)').forEach(bubble => {
+        const ext = bubble.dataset.ext;
+        bubble.classList.toggle('selected', selectedExts.has(ext));
+      });
+      // Update the 'All' bubble:
+      const allBubble = document.getElementById('allBubble');
+      if (allBubble) {
+        const allSelected = Array.from(extContainer.querySelectorAll('.ext-bubble:not(#allBubble)'))
+          .every(bubble => bubble.classList.contains('selected'));
+        allBubble.classList.toggle('selected', allSelected);
+      }
+    }
+  });
+</script>
+<!-- We remove 'async' here to reduce race conditions with the tokenizer -->
+<script src="https://unpkg.com/gpt-tokenizer"></script>

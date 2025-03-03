@@ -1,0 +1,11 @@
+secrets.toml
+.env
+
+# Python compilation artifacts
+**/__pycache__/
+**/*.py[cod]
+
+# Virtual environments
+.venv/
+prompts.db
+codeprinter.db

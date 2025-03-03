@@ -1,0 +1,24 @@
+<div id="extentionCheckboxes" class="mt-6 border border-gray-200 bg-base-200 p-4 rounded-lg">
+  <div class="text-sm font-medium mb-2">Filter by File Extensions</div>
+  <div id="extBubbleContainer" class="flex flex-wrap gap-2"></div>
+</div>
+
+<style>
+  .ext-bubble {
+    display: inline-block;
+    padding: 8px 12px;
+    margin: 4px;
+    border-radius: 9999px;
+    cursor: pointer;
+    transition: opacity 0.2s, transform 0.1s;
+    border: 1px solid #d1d5db;
+    color: white;
+    font-size: 0.875rem;
+  }
+  .ext-bubble:hover {
+    transform: scale(1.05);
+  }
+  .ext-bubble:not(.selected) {
+    opacity: 0.4;
+  }
+</style>

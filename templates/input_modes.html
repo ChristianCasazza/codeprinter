@@ -1,0 +1,15 @@
+<div id="githubMode" class="space-y-4">
+  <label class="label"><span class="label-text">GitHub URL</span></label>
+  <input type="text" id="repoUrl" class="input input-bordered w-full" placeholder="https://github.com/owner/repo..." />
+  {% if not has_github_token %}
+  <label class="label"><span class="label-text">GitHub Token (optional)</span></label>
+  <input type="text" id="accessToken" class="input input-bordered w-full" placeholder="token..." />
+  {% endif %}
+  <button id="fetchGitHub" class="btn btn-primary w-full">Fetch GitHub Directory</button>
+</div>
+
+<div id="localMode" class="space-y-4 hidden">
+  <label class="label"><span class="label-text">Local Path</span></label>
+  <input type="text" id="localPath" class="input input-bordered w-full" placeholder="/home/user/myrepo" />
+  <button id="fetchLocal" class="btn btn-primary w-full">Fetch Local Directory</button>
+</div>

@@ -62,3 +62,6 @@ Best place to contact me is sending me a DM on X at [@CasazzaNY](https://x.com/C
 
 ---
 **Happy coding!**
+
+
+I am providing you with a github repository below under the tag <github repo contents>. I have provided you exactly the files that I believe are most useful for your understanding. Analyze the repo and the files. In your response, provide an explanation of what you would classify as the entry point or base of the repo, and where the code is launched. Then, create a hierarchal explanation of the various files into different sections. Then, explain how each sections files work and how they work together to make the app work. Explain how you would go about utilizing this repo, and what its intended use is based on the code. Then, provide a list of questions or topics that you think I would naturally want to explore in more detail.

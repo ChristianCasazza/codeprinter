@@ -1,0 +1,17 @@
+<div id="{{ progress_id }}" class="mt-4 hidden flex items-center">
+  <div class="w-full bg-gray-200 rounded-full h-4 relative">
+    <div id="{{ progress_id }}Bar" class="bg-primary h-4 rounded-full" style="width: 0%; transition: width 0.1s ease-in-out;"></div>
+  </div>
+  <div id="{{ progress_id }}Celebration" class="ml-2 text-2xl hidden animate-firework">🎆</div>
+</div>
+
+<style>
+  @keyframes firework {
+    0% { transform: translateX(0) scale(1); opacity: 1; }
+    50% { transform: translateX(20px) scale(1.5); opacity: 0.8; }
+    100% { transform: translateX(40px) scale(1); opacity: 0; }
+  }
+  .animate-firework {
+    animation: firework 0.5s ease-out forwards;
+  }
+</style>
