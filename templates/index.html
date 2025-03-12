@@ -1,30 +1,322 @@
 <!DOCTYPE html>
-<html data-theme="light" lang="en">
+<html data-theme="nord" lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Codeprinter</title>
+  <title>CodePrinter - Code Export Tool</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://cdn.jsdelivr.net/npm/daisyui@4.x/dist/full.min.css" rel="stylesheet" />
   <script async src="https://unpkg.com/gpt-tokenizer"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/animate.css@4.1.1/animate.min.css" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    /* Animated Background for dark themes */
+    body.animated-bg::before {
+      content: '';
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: 
+        radial-gradient(ellipse at top left, rgba(29, 78, 216, 0.15) 0%, transparent 50%),
+        radial-gradient(ellipse at bottom right, rgba(124, 58, 237, 0.15) 0%, transparent 50%);
+      pointer-events: none;
+      z-index: -1;
+    }
+    
+    /* Syntax highlighting inspired design for directory structure */
+    .code-folder {
+      color: var(--primary);
+      font-weight: 600;
+    }
+    
+    .code-file {
+      color: var(--base-content);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    }
+    
+    /* Custom scrollbar */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    
+    ::-webkit-scrollbar-track {
+      background: var(--base-200);
+      border-radius: 4px;
+    }
+    
+    ::-webkit-scrollbar-thumb {
+      background: var(--primary);
+      opacity: 0.8;
+      border-radius: 4px;
+    }
+    
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--primary-focus);
+    }
+    
+    /* Floating cards effect */
+    .floating-card {
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+    
+    .floating-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 
+                  0 8px 10px -6px rgba(0, 0, 0, 0.1);
+    }
+    
+    /* Logo animation */
+    .logo-text {
+      background-image: linear-gradient(
+        90deg,
+        var(--primary) 0%,
+        var(--secondary) 50%,
+        var(--accent) 100%
+      );
+      background-size: 200% auto;
+      color: transparent;
+      background-clip: text;
+      -webkit-background-clip: text;
+      animation: gradient 8s ease infinite;
+    }
+    
+    @keyframes gradient {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+    
+    /* Theme preview buttons */
+    .theme-btn {
+      position: relative;
+      overflow: hidden;
+      transition: all 0.3s ease;
+    }
+    
+    .theme-btn::after {
+      content: "";
+      position: absolute;
+      height: 100%;
+      width: 100%;
+      top: 0;
+      left: -100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+      transition: all 0.6s ease;
+    }
+    
+    .theme-btn:hover::after {
+      left: 100%;
+    }
+  </style>
 </head>
-<body class="min-h-screen bg-gray-50">
-  <div class="container mx-auto p-6 max-w-5xl">
-    <div class="card bg-base-100 shadow-xl border border-gray-200">
-      <div class="card-body">
-        {% include 'header.html' %}
-        {% include 'input_modes.html' %}
-        {% set progress_id = "progressTop" %}
-        {% include 'progress.html' %}
-        {% include 'extension_filters.html' %}
-        {% include 'directory_tree.html' %}
-        {% include 'grouping_controls.html' %}
-        {% include 'action_buttons.html' %}
-        {% set progress_id = "progressBottom" %}
-        {% include 'progress.html' %}
-        {% include 'output_section.html' %}
+<body class="min-h-screen bg-base-200">
+  <div class="drawer">
+    <input id="theme-drawer" type="checkbox" class="drawer-toggle" />
+    <div class="drawer-content">
+      <!-- Navbar with animated logo -->
+      <div class="navbar bg-base-100 shadow-md sticky top-0 z-10 animate__animated animate__fadeIn">
+        <div class="flex-1">
+          <a class="btn btn-ghost normal-case text-xl">
+            <span class="logo-text font-bold">CodePrinter</span>
+          </a>
+        </div>
+        <div class="flex-none gap-2">
+          <button class="btn btn-ghost btn-circle" id="helpBtn">
+            <i class="fa-solid fa-circle-question"></i>
+          </button>
+          <label for="theme-drawer" class="btn btn-circle btn-ghost drawer-button">
+            <i class="fa-solid fa-palette"></i>
+          </label>
+        </div>
+      </div>
+      
+      <div class="container mx-auto px-4 py-6 max-w-5xl">
+        <div class="card bg-base-100 shadow-xl floating-card animate__animated animate__fadeIn">
+          <div class="card-body">
+            {% include 'header.html' %}
+            {% include 'input_modes.html' %}
+            {% set progress_id = "progressTop" %}
+            {% include 'progress.html' %}
+            {% include 'extension_filters.html' %}
+            {% include 'directory_tree.html' %}
+            {% include 'grouping_controls.html' %}
+            {% include 'action_buttons.html' %}
+            {% set progress_id = "progressBottom" %}
+            {% include 'progress.html' %}
+            {% include 'output_section.html' %}
+          </div>
+        </div>
+        
+        <!-- Footer -->
+        <div class="text-center mt-8 text-sm opacity-70 animate__animated animate__fadeIn animate__delay-1s">
+          <p>Easily select and package files for sharing with LLMs</p>
+          <p class="mt-1">
+            <a href="https://github.com/ChristianCasazza/codeprinter" target="_blank" class="link link-hover">
+              <i class="fa-brands fa-github mr-1"></i> GitHub Repository
+            </a>
+          </p>
+        </div>
+      </div>
+      
+      <!-- Help modal -->
+      <dialog id="helpModal" class="modal">
+        <form method="dialog" class="modal-box">
+          <h3 class="font-bold text-lg mb-4">How to use CodePrinter</h3>
+          <div class="space-y-4">
+            <div class="flex gap-3">
+              <div class="bg-primary text-primary-content rounded-full w-8 h-8 flex items-center justify-center flex-shrink-0">1</div>
+              <div>
+                <h4 class="font-medium">Select a repository</h4>
+                <p class="text-sm">Enter a GitHub URL or a local file path to load your repository.</p>
+              </div>
+            </div>
+            <div class="flex gap-3">
+              <div class="bg-primary text-primary-content rounded-full w-8 h-8 flex items-center justify-center flex-shrink-0">2</div>
+              <div>
+                <h4 class="font-medium">Choose files</h4>
+                <p class="text-sm">Select files from the directory tree or use file extension filters.</p>
+              </div>
+            </div>
+            <div class="flex gap-3">
+              <div class="bg-primary text-primary-content rounded-full w-8 h-8 flex items-center justify-center flex-shrink-0">3</div>
+              <div>
+                <h4 class="font-medium">Generate text</h4>
+                <p class="text-sm">Click "Selected Files" or "Full Project" to generate the output.</p>
+              </div>
+            </div>
+            <div class="flex gap-3">
+              <div class="bg-primary text-primary-content rounded-full w-8 h-8 flex items-center justify-center flex-shrink-0">4</div>
+              <div>
+                <h4 class="font-medium">Use the output</h4>
+                <p class="text-sm">Copy the text or download it as a file to share with LLMs.</p>
+              </div>
+            </div>
+          </div>
+          <div class="modal-action">
+            <button class="btn">Got it!</button>
+          </div>
+        </form>
+        <form method="dialog" class="modal-backdrop">
+          <button>close</button>
+        </form>
+      </dialog>
+    </div>
+    
+    <!-- Theme drawer with previews -->
+    <div class="drawer-side z-20">
+      <label for="theme-drawer" aria-label="close sidebar" class="drawer-overlay"></label>
+      <div class="menu p-4 w-80 min-h-full bg-base-200 text-base-content overflow-y-auto">
+        <h2 class="text-lg font-bold mb-4 flex items-center">
+          <i class="fa-solid fa-palette mr-2"></i> Choose Theme
+        </h2>
+        
+        <div class="grid grid-cols-2 gap-3">
+          <div class="theme-preview light-preview" onclick="setTheme('light')">
+            <button class="theme-btn btn btn-block justify-start gap-2" data-theme="light">
+              <div class="w-3 h-3 rounded-full bg-primary"></div>
+              Light
+            </button>
+          </div>
+          <div class="theme-preview dark-preview" onclick="setTheme('dark')">
+            <button class="theme-btn btn btn-block justify-start gap-2" data-theme="dark">
+              <div class="w-3 h-3 rounded-full bg-primary"></div>
+              Dark
+            </button>
+          </div>
+          <div class="theme-preview cupcake-preview" onclick="setTheme('cupcake')">
+            <button class="theme-btn btn btn-block justify-start gap-2" data-theme="cupcake">
+              <div class="w-3 h-3 rounded-full bg-primary"></div>
+              Cupcake
+            </button>
+          </div>
+          <div class="theme-preview nord-preview" onclick="setTheme('nord')">
+            <button class="theme-btn btn btn-block justify-start gap-2" data-theme="nord">
+              <div class="w-3 h-3 rounded-full bg-primary"></div>
+              Nord
+            </button>
+          </div>
+          <div class="theme-preview night-preview" onclick="setTheme('night')">
+            <button class="theme-btn btn btn-block justify-start gap-2" data-theme="night">
+              <div class="w-3 h-3 rounded-full bg-primary"></div>
+              Night
+            </button>
+          </div>
+          <div class="theme-preview synthwave-preview" onclick="setTheme('synthwave')">
+            <button class="theme-btn btn btn-block justify-start gap-2" data-theme="synthwave">
+              <div class="w-3 h-3 rounded-full bg-primary"></div>
+              Synthwave
+            </button>
+          </div>
+          <div class="theme-preview forest-preview" onclick="setTheme('forest')">
+            <button class="theme-btn btn btn-block justify-start gap-2" data-theme="forest">
+              <div class="w-3 h-3 rounded-full bg-primary"></div>
+              Forest
+            </button>
+          </div>
+          <div class="theme-preview dracula-preview" onclick="setTheme('dracula')">
+            <button class="theme-btn btn btn-block justify-start gap-2" data-theme="dracula">
+              <div class="w-3 h-3 rounded-full bg-primary"></div>
+              Dracula
+            </button>
+          </div>
+        </div>
+        
+        <div class="divider divider-neutral">Features</div>
+        
+        <div class="form-control">
+          <label class="label cursor-pointer">
+            <span class="label-text">Animated Background</span> 
+            <input type="checkbox" id="animatedBgToggle" class="toggle toggle-primary" />
+          </label>
+        </div>
       </div>
     </div>
   </div>
+  
   {% include 'scripts.html' %}
+  <script>
+    function setTheme(theme) {
+      document.documentElement.setAttribute('data-theme', theme);
+      localStorage.setItem('theme', theme);
+      document.getElementById('theme-drawer').checked = false;
+      
+      // Set animated bg for dark themes
+      const isDarkTheme = ['dark', 'night', 'dracula', 'synthwave', 'forest', 'halloween'].includes(theme);
+      document.body.classList.toggle('animated-bg', isDarkTheme && document.getElementById('animatedBgToggle').checked);
+    }
+    
+    document.addEventListener('DOMContentLoaded', () => {
+      const savedTheme = localStorage.getItem('theme') || 'nord';
+      document.documentElement.setAttribute('data-theme', savedTheme);
+      
+      // Setup animated background toggle
+      const animToggle = document.getElementById('animatedBgToggle');
+      const isAnimBg = localStorage.getItem('animatedBg') === 'true';
+      animToggle.checked = isAnimBg;
+      
+      const isDarkTheme = ['dark', 'night', 'dracula', 'synthwave', 'forest', 'halloween'].includes(savedTheme);
+      document.body.classList.toggle('animated-bg', isDarkTheme && isAnimBg);
+      
+      animToggle.addEventListener('change', () => {
+        localStorage.setItem('animatedBg', animToggle.checked);
+        const currentTheme = document.documentElement.getAttribute('data-theme');
+        const isDark = ['dark', 'night', 'dracula', 'synthwave', 'forest', 'halloween'].includes(currentTheme);
+        document.body.classList.toggle('animated-bg', isDark && animToggle.checked);
+      });
+      
+      // Help modal
+      const helpBtn = document.getElementById('helpBtn');
+      const helpModal = document.getElementById('helpModal');
+      
+      if (helpBtn && helpModal) {
+        helpBtn.addEventListener('click', () => {
+          helpModal.showModal();
+        });
+      }
+    });
+  </script>
 </body>
 </html>

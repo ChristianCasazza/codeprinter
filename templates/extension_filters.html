@@ -1,24 +1,180 @@
-<div id="extentionCheckboxes" class="mt-6 border border-gray-200 bg-base-200 p-4 rounded-lg">
-  <div class="text-sm font-medium mb-2">Filter by File Extensions</div>
-  <div id="extBubbleContainer" class="flex flex-wrap gap-2"></div>
+<div class="collapse collapse-arrow bg-base-200 mt-6">
+  <input type="checkbox" checked /> 
+  <div class="collapse-title font-medium">
+    <i class="fa-solid fa-filter mr-2"></i> Filter by File Extensions
+  </div>
+  <div class="collapse-content"> 
+    <div class="tabs tabs-boxed mb-4">
+      <a class="tab tab-active" id="includeTabBtn">Include Files</a>
+      <a class="tab" id="excludeTabBtn">Exclude Extensions</a>
+    </div>
+    
+    <div id="includeTab">
+      <div id="extBubbleContainer" class="flex flex-wrap gap-2 mt-2"></div>
+    </div>
+    
+    <div id="excludeTab" class="hidden">
+      <p class="text-sm opacity-80 mb-2">Select extensions to exclude from the directory tree:</p>
+      <div id="excludeExtContainer" class="flex flex-wrap gap-2 mt-2"></div>
+    </div>
+    
+    <div class="divider my-4">View Options</div>
+    
+    <div class="flex items-center gap-4 mb-2">
+      <div class="form-control">
+        <label class="label cursor-pointer gap-2">
+          <span class="label-text">Show code content</span> 
+          <input type="radio" name="view-type" class="radio" id="viewTypeCode" checked />
+        </label>
+      </div>
+      <div class="form-control">
+        <label class="label cursor-pointer gap-2">
+          <span class="label-text">Show file tree only</span> 
+          <input type="radio" name="view-type" class="radio" id="viewTypeTree" />
+        </label>
+      </div>
+    </div>
+  </div>
 </div>
 
 <style>
   .ext-bubble {
-    display: inline-block;
-    padding: 8px 12px;
-    margin: 4px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.5rem 0.75rem;
+    margin: 0.25rem;
     border-radius: 9999px;
     cursor: pointer;
-    transition: opacity 0.2s, transform 0.1s;
-    border: 1px solid #d1d5db;
-    color: white;
+    transition: all 0.2s ease;
     font-size: 0.875rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+    color: #fff; /* Changed to white text */
+    font-weight: 500;
+    position: relative;
+    overflow: hidden;
+    background-color: #333; /* Darker background */
   }
+  
+  .ext-bubble::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0,0,0,0.2);
+    border-radius: inherit;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+  }
+  
   .ext-bubble:hover {
-    transform: scale(1.05);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.5);
   }
+  
+  .ext-bubble:hover::before {
+    opacity: 1;
+  }
+  
   .ext-bubble:not(.selected) {
+    opacity: 0.65;
+    filter: grayscale(60%);
+  }
+  
+  .ext-bubble.selected {
+    box-shadow: 0 3px 6px rgba(0,0,0,0.3), inset 0 0 0 1px rgba(255,255,255,0.15);
+  }
+  
+  .exclude-ext-bubble {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.5rem 0.75rem;
+    margin: 0.25rem;
+    border-radius: 9999px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 0.875rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+    color: #fff; /* White text */
+    font-weight: 500;
+    position: relative;
+    background-color: #333; /* Darker background */
+  }
+  
+  .exclude-ext-bubble:hover {
+    filter: brightness(90%);
+  }
+  
+  .exclude-ext-bubble.excluded {
     opacity: 0.4;
+    text-decoration: line-through;
+  }
+  
+  .exclude-ext-bubble.excluded::after {
+    content: "✕";
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    background: #ff4d4d;
+    color: white;
+    width: 16px;
+    height: 16px;
+    font-size: 10px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  /* For dark themes, remove bright text-shadow and darken box-shadow more */
+  [data-theme="dark"] .ext-bubble,
+  [data-theme="night"] .ext-bubble,
+  [data-theme="dracula"] .ext-bubble,
+  [data-theme="forest"] .ext-bubble,
+  [data-theme="synthwave"] .ext-bubble,
+  [data-theme="dark"] .exclude-ext-bubble,
+  [data-theme="night"] .exclude-ext-bubble,
+  [data-theme="dracula"] .exclude-ext-bubble,
+  [data-theme="forest"] .exclude-ext-bubble,
+  [data-theme="synthwave"] .exclude-ext-bubble {
+    text-shadow: none;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.5), inset 0 0 0 1px rgba(255,255,255,0.1);
   }
 </style>
+
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const includeTabBtn = document.getElementById('includeTabBtn');
+    const excludeTabBtn = document.getElementById('excludeTabBtn');
+    const includeTab = document.getElementById('includeTab');
+    const excludeTab = document.getElementById('excludeTab');
+    const viewTypeCode = document.getElementById('viewTypeCode');
+    const viewTypeTree = document.getElementById('viewTypeTree');
+    
+    includeTabBtn.addEventListener('click', () => {
+      includeTabBtn.classList.add('tab-active');
+      excludeTabBtn.classList.remove('tab-active');
+      includeTab.classList.remove('hidden');
+      excludeTab.classList.add('hidden');
+    });
+    
+    excludeTabBtn.addEventListener('click', () => {
+      excludeTabBtn.classList.add('tab-active');
+      includeTabBtn.classList.remove('tab-active');
+      excludeTab.classList.remove('hidden');
+      includeTab.classList.add('hidden');
+    });
+    
+    viewTypeCode.addEventListener('change', updateViewMode);
+    viewTypeTree.addEventListener('change', updateViewMode);
+  });
+  
+  function updateViewMode() {
+    const isTreeOnly = document.getElementById('viewTypeTree').checked;
+    window.treeViewOnly = isTreeOnly;
+    // Will be used when generating output
+  }
+</script>

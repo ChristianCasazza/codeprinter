@@ -1,12 +1,35 @@
-<div id="groupingControls" class="mt-6 space-y-4 hidden">
-    <div class="flex gap-2">
-      <input type="text" id="groupingName" class="input input-bordered w-full" placeholder="Enter grouping name..." />
-      <button id="saveGrouping" class="btn btn-accent">Save Grouping</button>
-    </div>
-    <div class="flex gap-2">
-      <select id="groupingSelect" class="select select-bordered w-full">
-        <option value="">Select a saved grouping</option>
-      </select>
-      <button id="loadGrouping" class="btn btn-secondary">Load Grouping</button>
+<div class="divider divider-neutral mt-6">
+  <i class="fa-solid fa-bookmark mr-2"></i> File Groupings
+</div>
+
+<div id="groupingControls" class="space-y-4 hidden">
+  <div class="card bg-base-200">
+    <div class="card-body p-4">
+      <h3 class="card-title text-base">
+        <i class="fa-solid fa-save mr-2"></i> Save Selection
+      </h3>
+      <div class="join w-full mt-2">
+        <input type="text" id="groupingName" class="input input-bordered join-item w-full" placeholder="Enter grouping name..." />
+        <button id="saveGrouping" class="btn btn-accent join-item">
+          <i class="fa-solid fa-save mr-2"></i> Save
+        </button>
+      </div>
     </div>
   </div>
+  
+  <div class="card bg-base-200">
+    <div class="card-body p-4">
+      <h3 class="card-title text-base">
+        <i class="fa-solid fa-list mr-2"></i> Load Saved Selection
+      </h3>
+      <div class="join w-full mt-2">
+        <select id="groupingSelect" class="select select-bordered join-item w-full">
+          <option value="">Select a saved grouping</option>
+        </select>
+        <button id="loadGrouping" class="btn btn-secondary join-item">
+          <i class="fa-solid fa-folder-open mr-2"></i> Load
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

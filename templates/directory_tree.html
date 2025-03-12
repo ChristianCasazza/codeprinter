@@ -1,1 +1,290 @@
-<div id="directoryStructure" class="mt-6 p-4 bg-base-200 rounded-lg" style="resize: vertical; overflow-y: auto; position: relative; border: 1px solid #d1d5db;"></div>
+<div class="card bg-base-200 mt-6 border border-base-300">
+  <div class="card-body p-4">
+    <div class="flex justify-between items-center">
+      <h3 class="card-title text-base">
+        <i class="fa-solid fa-folder-tree mr-2"></i>Directory Structure
+      </h3>
+      <div class="badge badge-neutral">Select files to include</div>
+    </div>
+    
+    <div class="flex mt-4 mb-2 items-center gap-2">
+      <div class="join flex-1">
+        <input id="treeSearchInput" type="text" placeholder="Search files..." class="input input-sm input-bordered join-item w-full" />
+        <button id="clearSearchBtn" class="btn btn-sm join-item" onclick="clearTreeSearch()">
+          <i class="fa-solid fa-times"></i>
+        </button>
+      </div>
+      <button id="expandAllBtn" class="btn btn-sm btn-outline gap-1" onclick="toggleAllFolders(true)">
+        <i class="fa-solid fa-angle-double-down"></i> Expand
+      </button>
+      <button id="collapseAllBtn" class="btn btn-sm btn-outline gap-1" onclick="toggleAllFolders(false)">
+        <i class="fa-solid fa-angle-double-up"></i> Collapse
+      </button>
+    </div>
+    
+    <div class="divider my-0"></div>
+    
+    <div id="directoryStructure" class="p-3 bg-base-200 rounded-lg shadow-inner code-explorer" style="resize: vertical; overflow-y: auto; position: relative; min-height: 300px; max-height: 80vh; height: 500px;">
+      <div class="resize-handle" id="resizeHandle"></div>
+    </div>
+  </div>
+</div>
+
+<style>
+  /* Modern directory tree styling */
+  .code-explorer {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    font-size: 0.9rem;
+    line-height: 1.5;
+  }
+  
+  .tree-lines {
+    list-style-type: none;
+    padding-left: 0;
+  }
+  
+  .tree-lines li {
+    position: relative;
+    padding: 3px 0;
+    transition: background-color 0.15s ease;
+    border-radius: 4px;
+  }
+  
+  .tree-lines li:hover {
+    background-color: var(--fallback-bc,oklch(var(--bc)/0.05));
+  }
+  
+  .tree-lines li.highlight {
+    background-color: var(--fallback-bc,oklch(var(--bc)/0.1));
+    animation: highlight-pulse 2s infinite;
+  }
+  
+  @keyframes highlight-pulse {
+    0% { background-color: var(--fallback-bc,oklch(var(--bc)/0.1)); }
+    50% { background-color: var(--fallback-bc,oklch(var(--bc)/0.2)); }
+    100% { background-color: var(--fallback-bc,oklch(var(--bc)/0.1)); }
+  }
+  
+  .tree-lines li:before {
+    content: "";
+    position: absolute;
+    left: -15px;
+    top: 12px;
+    width: 10px;
+    height: 1px;
+    background-color: var(--fallback-bc,oklch(var(--bc)/0.3));
+  }
+  
+  .tree-lines li:after {
+    content: "";
+    position: absolute;
+    left: -15px;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background-color: var(--fallback-bc,oklch(var(--bc)/0.3));
+  }
+  
+  .tree-lines li:last-child:after {
+    height: 12px;
+  }
+  
+  summary {
+    cursor: pointer;
+    user-select: none;
+    display: flex;
+    align-items: center;
+    padding: 2px 4px;
+    border-radius: 4px;
+  }
+  
+  summary:hover {
+    background-color: var(--fallback-bc,oklch(var(--bc)/0.1));
+  }
+  
+  summary::-webkit-details-marker {
+    display: none;
+  }
+  
+  summary::before {
+    content: "▶";
+    font-size: 0.7em;
+    margin-right: 5px;
+    transition: transform 0.1s;
+    opacity: 0.7;
+  }
+  
+  details[open] > summary::before {
+    transform: rotate(90deg);
+  }
+  
+  /* File type icons */
+  summary.folder-node::before {
+    content: "📁";
+    opacity: 1;
+  }
+  
+  details[open] > summary.folder-node::before {
+    content: "📂";
+    opacity: 1;
+  }
+  
+  .file-js::before { content: "🟨"; }
+  .file-ts::before { content: "🟦"; }
+  .file-py::before { content: "🐍"; }
+  .file-html::before { content: "🌐"; }
+  .file-css::before { content: "🎨"; }
+  .file-json::before { content: "📊"; }
+  .file-md::before { content: "📝"; }
+  .file-txt::before { content: "📄"; }
+  .file-yml::before, .file-yaml::before { content: "⚙️"; }
+  .file-sql::before { content: "🗄️"; }
+  
+  /* Checkbox styling */
+  .tree-checkbox {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    margin-right: 8px;
+    cursor: pointer;
+    user-select: none;
+  }
+  
+  /* Resize handle styling */
+  .resize-handle {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 10px;
+    background-color: transparent;
+    cursor: ns-resize;
+    text-align: center;
+  }
+  
+  .resize-handle::after {
+    content: "";
+    display: inline-block;
+    width: 40px;
+    height: 4px;
+    border-radius: 2px;
+    background-color: var(--fallback-bc,oklch(var(--bc)/0.3));
+  }
+  
+  .resize-handle:hover::after {
+    background-color: var(--fallback-bc,oklch(var(--bc)/0.5));
+  }
+</style>
+
+<script>
+  // Add resize functionality
+  document.addEventListener('DOMContentLoaded', () => {
+    const directoryStructure = document.getElementById('directoryStructure');
+    const resizeHandle = document.getElementById('resizeHandle');
+    
+    if (resizeHandle && directoryStructure) {
+      let startY, startHeight;
+      
+      const startResize = (e) => {
+        startY = e.clientY;
+        startHeight = parseInt(document.defaultView.getComputedStyle(directoryStructure).height, 10);
+        document.documentElement.addEventListener('mousemove', resize);
+        document.documentElement.addEventListener('mouseup', stopResize);
+        e.preventDefault();
+      };
+      
+      const resize = (e) => {
+        const newHeight = startHeight + (e.clientY - startY);
+        directoryStructure.style.height = Math.max(300, newHeight) + 'px';
+      };
+      
+      const stopResize = () => {
+        document.documentElement.removeEventListener('mousemove', resize);
+        document.documentElement.removeEventListener('mouseup', stopResize);
+      };
+      
+      resizeHandle.addEventListener('mousedown', startResize);
+    }
+  });
+  function clearTreeSearch() {
+    const searchInput = document.getElementById('treeSearchInput');
+    if (searchInput) {
+      searchInput.value = '';
+      searchFiles('');
+    }
+  }
+  
+  function searchFiles(query) {
+    const items = document.querySelectorAll('#directoryStructure li');
+    if (!query) {
+      items.forEach(item => {
+        item.style.display = '';
+        item.classList.remove('highlight');
+      });
+      return;
+    }
+    
+    query = query.toLowerCase();
+    
+    // First pass - highlight all matching files and show their parent folders
+    items.forEach(item => {
+      const checkbox = item.querySelector('input[type="checkbox"]');
+      if (!checkbox) return;
+      
+      const isFile = !checkbox.classList.contains('folder-checkbox');
+      const path = checkbox.dataset.path;
+      
+      if (isFile && path && path.toLowerCase().includes(query)) {
+        item.classList.add('highlight');
+        item.style.display = '';
+        
+        // Show all parent folders
+        let parent = item.parentElement.closest('li');
+        while (parent) {
+          const details = parent.querySelector('details');
+          if (details) details.open = true;
+          parent.style.display = '';
+          parent = parent.parentElement.closest('li');
+        }
+      } else if (isFile) {
+        item.classList.remove('highlight');
+        item.style.display = 'none';
+      } else {
+        item.classList.remove('highlight');
+      }
+    });
+    
+    // Second pass - hide empty folders
+    const allFolders = document.querySelectorAll('#directoryStructure details');
+    allFolders.forEach(folder => {
+      const folderLi = folder.closest('li');
+      const visibleChildren = Array.from(folder.querySelectorAll('li')).filter(
+        child => child.style.display !== 'none'
+      );
+      
+      if (visibleChildren.length === 0) {
+        folderLi.style.display = 'none';
+      } else {
+        folderLi.style.display = '';
+      }
+    });
+  }
+  
+  function toggleAllFolders(open) {
+    const allFolders = document.querySelectorAll('#directoryStructure details');
+    allFolders.forEach(folder => {
+      folder.open = open;
+    });
+  }
+  
+  document.addEventListener('DOMContentLoaded', () => {
+    const searchInput = document.getElementById('treeSearchInput');
+    if (searchInput) {
+      searchInput.addEventListener('input', (e) => {
+        searchFiles(e.target.value);
+      });
+    }
+  });
+</script>

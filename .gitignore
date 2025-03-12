@@ -9,3 +9,4 @@ secrets.toml
 .venv/
 prompts.db
 codeprinter.db
+CLAUDE.md

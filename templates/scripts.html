@@ -1,7 +1,33 @@
-<!-- templates/scripts.html -->
-
 <script>
   document.addEventListener('DOMContentLoaded', () => {
+    console.log("DOM fully loaded");
+
+    // Constants
+    // ALLOWED_EXTENSIONS remain the same
+    const ALLOWED_EXTENSIONS = ['.json', '.py', '.js', '.ts', '.sql', '.yml', '.svelte', '.md', '.tsx', '.yaml', '.tsx', '.css', '.html', '.txt', '.toml'];
+    
+    // Darker custom colors for all extensions, plus white text
+    function getExtensionColors() {
+      return {
+        'json': '#333333',
+        'py': '#333333',
+        'js': '#333333',
+        'ts': '#333333',
+        'sql': '#333333',
+        'yml': '#333333',
+        'yaml': '#333333',
+        'tsx': '#333333',
+        'css': '#333333',
+        'html': '#333333',
+        'txt': '#333333',
+        'toml': '#333333',
+        'md': '#333333'
+      };
+    }
+    
+    const EXT_COLORS = getExtensionColors();
+
+    // Grab references
     const githubModeDiv = document.getElementById('githubMode');
     const localModeDiv = document.getElementById('localMode');
     const progressContainerTop = document.getElementById('progressTop');
@@ -14,23 +40,19 @@
     let currentTree = [];
     let isGithub = false;
     let basePath = '';
-    const ALLOWED_EXTENSIONS = ['.json', '.py', '.js', '.ts', '.sql', '.yml', '.yaml', '.tsx', '.css', '.html', '.txt', '.toml'];
-    const EXT_COLORS = {
-      'json': '#f97316', 'py': '#3572A5', 'js': '#f1e05a', 'ts': '#2b7489', 'sql': '#336791',
-      'yml': '#cb171e', 'yaml': '#cb171e', 'tsx': '#2b7489', 'css': '#563d7c', 'html': '#e34c26', 
-      'txt': '#4b5563', 'toml': '#9c4221'
-    };
 
-    document.getElementById('githubTabBtn').addEventListener('click', () => toggleMode(true));
-    document.getElementById('localTabBtn').addEventListener('click', () => toggleMode(false));
     function toggleMode(github) {
-      githubModeDiv.classList.toggle('hidden', !github);
-      localModeDiv.classList.toggle('hidden', github);
-      document.getElementById('githubTabBtn').classList.toggle('tab-active', github);
-      document.getElementById('localTabBtn').classList.toggle('tab-active', !github);
+      console.log("Toggling mode to:", github ? "GitHub" : "Local");
+      if (githubModeDiv && localModeDiv) {
+        githubModeDiv.classList.toggle('hidden', !github);
+        localModeDiv.classList.toggle('hidden', github);
+        document.getElementById('githubTabBtn').classList.toggle('tab-active', github);
+        document.getElementById('localTabBtn').classList.toggle('tab-active', !github);
+      }
     }
 
     async function fetchData(endpoint, data, isGenerate = false) {
+      console.log("Fetching data from:", endpoint, "with data:", data);
       const progressContainer = isGenerate ? progressContainerBottom : progressContainerTop;
       const progressBar = isGenerate ? progressBarBottom : progressBarTop;
       const celebration = isGenerate ? celebrationBottom : celebrationTop;
@@ -61,6 +83,7 @@
           }, 500);
         }
 
+        console.log("Fetch successful:", result);
         return result;
       } catch (err) {
         console.error("Fetch error:", err.message, { endpoint, data });
@@ -69,48 +92,40 @@
       }
     }
 
-    document.getElementById('fetchGitHub').addEventListener('click', async () => {
-      const repoUrl = document.getElementById('repoUrl').value.trim();
-      if (!repoUrl) return alert("Enter a GitHub URL.");
-      isGithub = true;
-      basePath = repoUrl;
-      try {
-        const data = { repoUrl };
-        {% if not has_github_token %}
-        data.accessToken = document.getElementById('accessToken').value.trim();
-        {% endif %}
-        currentTree = await fetchData('/api/github-tree', data);
-        displayDirectoryStructure(currentTree);
-        showActionButtons();
-        await loadGroupings();
-      } catch (err) {
-        alert("Error: " + err.message);
-      }
-    });
-
-    document.getElementById('fetchLocal').addEventListener('click', async () => {
-      const localPath = document.getElementById('localPath').value.trim();
-      if (!localPath) return alert("Enter a local path.");
-      isGithub = false;
-      basePath = localPath;
-      try {
-        currentTree = await fetchData('/api/local-tree', { localPath });
-        displayDirectoryStructure(currentTree);
-        showActionButtons();
-        await loadGroupings();
-      } catch (err) {
-        alert("Error: " + err.message);
-      }
-    });
-
     function showActionButtons() {
-      document.getElementById('generateTextButton').classList.remove('hidden');
-      document.getElementById('generateFullTextButton').classList.remove('hidden');
-      groupingControls.classList.remove('hidden');
-      document.getElementById('outputText').value = '';
+      console.log("Showing action buttons");
+      const generateTextButton = document.getElementById('generateTextButton');
+      const generateFullTextButton = document.getElementById('generateFullTextButton');
+      const outputText = document.getElementById('outputText');
+      const copyButton = document.getElementById('copyButton');
+      const downloadButton = document.getElementById('downloadButton');
+      
+      if (generateTextButton && generateFullTextButton && outputText) {
+        generateTextButton.classList.remove('hidden');
+        generateFullTextButton.classList.remove('hidden');
+        groupingControls.classList.remove('hidden');
+        
+        // Removed the 'generateHelp' display logic to remove the help text
+        // that was originally triggered by localStorage check.
+        
+        // Reset output area
+        outputText.value = '';
+        if (copyButton) copyButton.classList.add('hidden');
+        if (downloadButton) downloadButton.classList.add('hidden');
+      } else {
+        console.error("Action button elements missing:", { generateTextButton, generateFullTextButton, outputText });
+      }
+    }
+
+    function getSelectedFiles() {
+      const selected = Array.from(document.querySelectorAll('#directoryStructure input[type="checkbox"]:checked:not(.folder-checkbox)'))
+        .map(cb => JSON.parse(cb.value));
+      console.log("Selected files:", selected);
+      return selected;
     }
 
     function displayDirectoryStructure(tree) {
+      console.log("Displaying directory structure with tree:", tree);
       const container = document.getElementById('directoryStructure');
       const extContainer = document.getElementById('extBubbleContainer');
       container.innerHTML = '';
@@ -157,12 +172,12 @@
         checkbox.type = 'checkbox';
         checkbox.className = 'checkbox checkbox-sm mr-2';
 
-        if (typeof item === 'object' && !item.id) {
-          // FOLDER
+        if (typeof item === 'object' && !item.path) {
+          // Folder node
           const details = document.createElement('details');
           details.open = true;
           const summary = document.createElement('summary');
-          summary.innerHTML = '📁 ' + name;
+          summary.innerHTML = ' ' + name;
           summary.className = 'font-bold';
           details.appendChild(summary);
           li.appendChild(details);
@@ -188,14 +203,15 @@
             updateExtensionBubbles();
           });
         } else {
-          // FILE
+          // File node
           checkbox.value = JSON.stringify(item);
+          checkbox.dataset.path = item.path;
           li.appendChild(checkbox);
           li.appendChild(document.createTextNode(name));
 
           const ext = name.split('.').pop().toLowerCase();
           extensionMap.get(ext).forEach(file => {
-            if (file.id === item.id) {
+            if (file.path === item.path) {
               file.checkbox = checkbox;
             }
           });
@@ -207,38 +223,16 @@
         });
       }
 
-      function updateParentCheckbox(checkbox) {
-        const li = checkbox.closest('li');
-        if (!li) return;
-        const parentLi = li.parentElement.closest('li');
-        if (!parentLi) return;
-        const parentCheckbox = parentLi.querySelector(':scope > input[type="checkbox"]');
-        if (!parentCheckbox) return;
-
-        const siblingCheckboxes = parentLi.querySelectorAll(':scope > ul input[type="checkbox"]');
-        const checkedCount = Array.from(siblingCheckboxes).filter(cb => cb.checked).length;
-        const totalCount = siblingCheckboxes.length;
-
-        if (checkedCount === 0) {
-          parentCheckbox.checked = false;
-          parentCheckbox.indeterminate = false;
-        } else if (checkedCount === totalCount) {
-          parentCheckbox.checked = true;
-          parentCheckbox.indeterminate = false;
-        } else {
-          parentCheckbox.checked = false;
-          parentCheckbox.indeterminate = true;
-        }
-        updateParentCheckbox(parentCheckbox);
-      }
-
       for (const [name, item] of Object.entries(directoryStructure)) {
         createTreeNode(name, item, rootUl);
       }
 
+      // "All" bubble
       const allBubble = document.createElement('span');
       allBubble.className = 'ext-bubble selected';
-      allBubble.style.backgroundColor = '#4b5563';
+      allBubble.style.backgroundColor = '#333';  // Force dark background
+      allBubble.style.color = '#fff';            // White text
+      allBubble.id = 'allBubble';
       allBubble.textContent = `All (${filtered.length})`;
       allBubble.addEventListener('click', () => {
         const isSelected = !allBubble.classList.contains('selected');
@@ -254,13 +248,14 @@
           });
         });
       });
-      allBubble.id = 'allBubble';
       extContainer.appendChild(allBubble);
 
+      // Individual extension bubbles
       extensionMap.forEach((files, ext) => {
         const bubble = document.createElement('span');
         bubble.className = 'ext-bubble selected';
-        bubble.style.backgroundColor = EXT_COLORS[ext] || '#4b5563';
+        bubble.style.backgroundColor = EXT_COLORS[ext] || '#333333'; // dark color
+        bubble.style.color = '#fff'; // ensure white text
         bubble.textContent = `.${ext} (${files.length})`;
         bubble.dataset.ext = ext;
         bubble.addEventListener('click', () => {
@@ -283,16 +278,6 @@
         allBubble.classList.toggle('selected', allSelected);
       }
 
-      function updateExtensionBubbles() {
-        const selectedFiles = getSelectedFiles();
-        const selectedExts = new Set(selectedFiles.map(file => file.path.split('.').pop().toLowerCase()));
-        extContainer.querySelectorAll('.ext-bubble:not(#allBubble)').forEach(bubble => {
-          const ext = bubble.dataset.ext;
-          bubble.classList.toggle('selected', selectedExts.has(ext));
-        });
-        updateAllBubble();
-      }
-
       const lineHeight = 24;
       const padding = 32;
       const totalHeight = (filtered.length * lineHeight) + padding;
@@ -305,175 +290,9 @@
         }
       });
 
-      updateExtensionBubbles(); // Initial update
+      updateExtensionBubbles();
     }
 
-    document.getElementById('generateTextButton').addEventListener('click', async () => {
-      const selected = getSelectedFiles();
-      if (!selected.length) return alert("No files selected.");
-      const data = { repoIdentifier: basePath, fileIds: selected.map(f => f.id) };
-      {% if not has_github_token %}
-      if (isGithub) data.accessToken = document.getElementById('accessToken').value.trim();
-      {% endif %}
-      try {
-        const contents = await fetchData('/api/file-contents', data, true);
-        document.getElementById('outputText').value = formatRepoContents(contents, selected);
-        document.getElementById('copyButton').classList.remove('hidden');
-        document.getElementById('downloadButton').classList.remove('hidden');
-      } catch (err) {
-        alert("Error: " + err.message);
-      }
-    });
-
-    document.getElementById('generateFullTextButton').addEventListener('click', async () => {
-      const selected = getSelectedFiles();
-      const allFileIds = currentTree.map(f => f.id);
-      const data = { repoIdentifier: basePath, fileIds: allFileIds };
-      {% if not has_github_token %}
-      if (isGithub) data.accessToken = document.getElementById('accessToken').value.trim();
-      {% endif %}
-      try {
-        const contents = await fetchData('/api/file-contents', data, true);
-        document.getElementById('outputText').value = formatFullRepoContents(contents, selected);
-        document.getElementById('copyButton').classList.remove('hidden');
-        document.getElementById('downloadButton').classList.remove('hidden');
-      } catch (err) {
-        alert("Error: " + err.message);
-      }
-    });
-
-    document.getElementById('saveGrouping').addEventListener('click', async () => {
-      const groupingName = document.getElementById('groupingName').value.trim();
-      const selected = getSelectedFiles();
-      if (!groupingName) return alert("Enter a grouping name.");
-      if (!selected.length) return alert("No files selected to save in grouping.");
-      const data = { repoIdentifier: basePath, groupingName, fileIds: selected.map(f => f.id) };
-      try {
-        const result = await fetchData('/api/save-grouping', data);
-        alert(result.message);
-        await loadGroupings();
-      } catch (err) {
-        alert("Error saving grouping: " + err.message);
-      }
-    });
-
-    document.getElementById('loadGrouping').addEventListener('click', () => {
-      const selectedName = document.getElementById('groupingSelect').value;
-      if (!selectedName) return alert("Please select a grouping to load.");
-
-      const allCheckboxes = document.querySelectorAll('#directoryStructure input[type="checkbox"]');
-      allCheckboxes.forEach(cb => {
-        cb.checked = false;
-        cb.indeterminate = false;
-      });
-
-      const grouping = groupings.find(g => g.name === selectedName);
-      if (grouping && grouping.files.length) {
-        grouping.files.forEach(file => {
-          const cb = Array.from(document.querySelectorAll('#directoryStructure input[type="checkbox"]'))
-            .find(c => {
-              const val = c.value ? JSON.parse(c.value) : {};
-              return val.id === file.id && val.path === file.path;
-            });
-          if (cb) {
-            cb.checked = true;
-            updateParentCheckbox(cb);
-          } else {
-            console.warn(`Checkbox not found for file: ${file.path} (ID: ${file.id})`);
-          }
-        });
-        updateExtensionBubbles();
-      } else {
-        alert("No files found in this grouping or grouping not loaded correctly.");
-      }
-    });
-
-    let groupings = [];
-    async function loadGroupings() {
-      try {
-        const result = await fetchData('/api/get-groupings', { repoIdentifier: basePath });
-        groupings = result.groupings;
-        const select = document.getElementById('groupingSelect');
-        select.innerHTML = '<option value="">Select a saved grouping</option>';
-        groupings.forEach(g => {
-          const option = document.createElement('option');
-          option.value = g.name;
-          option.textContent = g.name;
-          select.appendChild(option);
-        });
-      } catch (err) {
-        alert("Error loading groupings: " + err.message);
-      }
-    }
-
-    function getSelectedFiles() {
-      return Array.from(document.querySelectorAll('#directoryStructure input[type="checkbox"]:checked:not(.folder-checkbox)'))
-        .map(cb => JSON.parse(cb.value));
-    }
-
-    function formatRepoContents(contents, selected) {
-      contents.sort((a, b) => a.path.localeCompare(b.path));
-      let output = 'Directory Structure (Selected Files):\n\n' + contents.map(c => `├── ${c.path}`).join('\n');
-      output += contents.map(c => `\n\n---\nFile: ${c.path}\n---\n\n${c.text}`).join('');
-
-      // Token counting fallback check:
-      try {
-        if (typeof GPTTokenizer_cl100k_base !== 'undefined') {
-          const tokens = GPTTokenizer_cl100k_base.encode(output).length;
-          document.getElementById('tokenCount').textContent = `Approx Token Count: ${tokens}`;
-        }
-      } catch (err) {
-        console.error("Token count error or tokenizer not loaded:", err);
-      }
-      return output;
-    }
-
-    function formatFullRepoContents(contents, selected) {
-      contents.sort((a, b) => a.path.localeCompare(b.path));
-      const selectedPaths = new Set(selected.map(f => f.path));
-
-      let output = 'Full Directory Structure:\n\n' +
-        contents.map(c => `${selectedPaths.has(c.path) ? '├──' : '└──'} ${c.path}`).join('\n');
-
-      output += '\n\nSelected Files:\n' + 
-        contents
-          .filter(c => selectedPaths.has(c.path))
-          .map(c => `\n---\nFile: ${c.path}\n---\n\n${c.text}`)
-          .join('');
-
-      // Token counting fallback check:
-      try {
-        if (typeof GPTTokenizer_cl100k_base !== 'undefined') {
-          const tokens = GPTTokenizer_cl100k_base.encode(output).length;
-          document.getElementById('tokenCount').textContent = `Approx Token Count: ${tokens}`;
-        }
-      } catch (err) {
-        console.error("Token count error or tokenizer not loaded:", err);
-      }
-      return output;
-    }
-
-    document.getElementById('copyButton').addEventListener('click', () => {
-      const text = document.getElementById('outputText').value;
-      navigator.clipboard.writeText(text).then(() => console.log("Copied."));
-    });
-
-    document.getElementById('downloadButton').addEventListener('click', () => {
-      const text = document.getElementById('outputText').value;
-      if (!text.trim()) return alert("No content to download.");
-      downloadBlob(new Blob([text], { type: 'text/plain' }), 'prompt.txt');
-    });
-
-    function downloadBlob(blob, filename) {
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename;
-      a.click();
-      URL.revokeObjectURL(url);
-    }
-
-    // Helper to update parent checkbox
     function updateParentCheckbox(checkbox) {
       const li = checkbox.closest('li');
       if (!li) return;
@@ -507,7 +326,6 @@
         const ext = bubble.dataset.ext;
         bubble.classList.toggle('selected', selectedExts.has(ext));
       });
-      // Update the 'All' bubble:
       const allBubble = document.getElementById('allBubble');
       if (allBubble) {
         const allSelected = Array.from(extContainer.querySelectorAll('.ext-bubble:not(#allBubble)'))
@@ -515,7 +333,261 @@
         allBubble.classList.toggle('selected', allSelected);
       }
     }
+
+    function formatRepoContents(contents, selected) {
+      contents.sort((a, b) => a.path.localeCompare(b.path));
+      let output = '# Repository Content\n\n';
+      output += '## Directory Structure (Selected Files)\n\n';
+      output += contents.map(c => `├── ${c.path}`).join('\n');
+      
+      output += '\n\n## Files\n';
+      output += contents.map(c => `\n### File: ${c.path}\n\`\`\`${getLanguageFromPath(c.path)}\n${c.text}\n\`\`\``).join('\n');
+
+      try {
+        if (typeof GPTTokenizer_cl100k_base !== 'undefined') {
+          const tokens = GPTTokenizer_cl100k_base.encode(output).length;
+          updateTokenCount(output);
+        }
+      } catch (err) {
+        console.error("Token count error or tokenizer not loaded:", err);
+      }
+      return output;
+    }
+    
+    function getLanguageFromPath(path) {
+      const ext = path.split('.').pop().toLowerCase();
+      const langMap = {
+        'js': 'javascript',
+        'ts': 'typescript',
+        'py': 'python',
+        'html': 'html',
+        'css': 'css',
+        'json': 'json',
+        'md': 'markdown',
+        'sql': 'sql',
+        'yml': 'yaml',
+        'yaml': 'yaml'
+      };
+      return langMap[ext] || '';
+    }
+    
+    // Original placeholder for token counting
+    window.updateTokenCount = function(text) {
+      try {
+        if (typeof GPTTokenizer_cl100k_base !== 'undefined') {
+          const tokens = GPTTokenizer_cl100k_base.encode(text).length;
+          document.getElementById('tokenCount').textContent = `${tokens.toLocaleString()}`;
+        }
+      } catch (err) {
+        console.error("Token count error or tokenizer not loaded:", err);
+      }
+    };
+
+    function formatFullRepoContents(contents, selected) {
+      contents.sort((a, b) => a.path.localeCompare(b.path));
+      const selectedPaths = new Set(selected.map(f => f.path));
+
+      let output = '# Complete Repository Overview\n\n';
+      output += '## Full Directory Structure\n\n';
+      output += contents.map(c => `${selectedPaths.has(c.path) ? '├──' : '└──'} ${c.path}`).join('\n');
+
+      output += '\n\n## Selected Files\n';
+      output += contents
+        .filter(c => selectedPaths.has(c.path))
+        .map(c => `\n### File: ${c.path}\n\`\`\`${getLanguageFromPath(c.path)}\n${c.text}\n\`\`\``)
+        .join('\n');
+
+      try {
+        if (typeof GPTTokenizer_cl100k_base !== 'undefined') {
+          updateTokenCount(output);
+        }
+      } catch (err) {
+        console.error("Token count error or tokenizer not loaded:", err);
+      }
+      return output;
+    }
+
+    function downloadBlob(blob, filename) {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    let groupings = [];
+
+    async function loadGroupings() {
+      try {
+        const result = await fetchData('/api/get-groupings', { repoIdentifier: basePath });
+        groupings = result.groupings;
+        const select = document.getElementById('groupingSelect');
+        select.innerHTML = '<option value="">Select a saved grouping</option>';
+        groupings.forEach(g => {
+          const option = document.createElement('option');
+          option.value = g.name;
+          option.textContent = g.name;
+          select.appendChild(option);
+        });
+      } catch (err) {
+        alert("Error loading groupings: " + err.message);
+      }
+    }
+
+    // Event listeners for mode toggles
+    const githubTabBtn = document.getElementById('githubTabBtn');
+    const localTabBtn = document.getElementById('localTabBtn');
+    if (githubTabBtn) {
+      githubTabBtn.addEventListener('click', () => toggleMode(true));
+    }
+    if (localTabBtn) {
+      localTabBtn.addEventListener('click', () => toggleMode(false));
+    }
+
+    // Fetch GitHub or Local
+    const fetchGitHubBtn = document.getElementById('fetchGitHub');
+    if (fetchGitHubBtn) {
+      fetchGitHubBtn.addEventListener('click', async () => {
+        const repoUrl = document.getElementById('repoUrl')?.value.trim();
+        if (!repoUrl) {
+          alert("Enter a GitHub URL.");
+          return;
+        }
+        isGithub = true;
+        basePath = repoUrl;
+        try {
+          const data = { repoUrl };
+          {% if not has_github_token %}data.accessToken = document.getElementById('accessToken')?.value.trim();{% endif %}
+          currentTree = await fetchData('/api/github-tree', data);
+          displayDirectoryStructure(currentTree);
+          showActionButtons();
+          await loadGroupings();
+        } catch (err) {
+          alert("Error: " + err.message);
+        }
+      });
+    }
+
+    const fetchLocalBtn = document.getElementById('fetchLocal');
+    if (fetchLocalBtn) {
+      fetchLocalBtn.addEventListener('click', async () => {
+        const localPath = document.getElementById('localPath')?.value.trim();
+        if (!localPath) {
+          alert("Enter a local path.");
+          return;
+        }
+        isGithub = false;
+        basePath = localPath;
+        try {
+          currentTree = await fetchData('/api/local-tree', { localPath });
+          displayDirectoryStructure(currentTree);
+          showActionButtons();
+          await loadGroupings();
+        } catch (err) {
+          alert("Error: " + err.message);
+        }
+      });
+    }
+
+    // Generate text from selected files
+    document.getElementById('generateTextButton').addEventListener('click', async () => {
+      const selected = getSelectedFiles();
+      if (!selected.length) return alert("No files selected.");
+      const data = { repoIdentifier: basePath, filePaths: selected.map(f => f.path) };
+      {% if not has_github_token %} if (isGithub) data.accessToken = document.getElementById('accessToken')?.value.trim(); {% endif %}
+      try {
+        const contents = await fetchData('/api/file-contents', data, true);
+        document.getElementById('outputText').value = formatRepoContents(contents, selected);
+        document.getElementById('copyButton').classList.remove('hidden');
+        document.getElementById('downloadButton').classList.remove('hidden');
+      } catch (err) {
+        alert("Error: " + err.message);
+      }
+    });
+
+    // Generate text for *all* files, marking selected separately
+    document.getElementById('generateFullTextButton').addEventListener('click', async () => {
+      const selected = getSelectedFiles();
+      const allFilePaths = currentTree.map(f => f.path);
+      const data = { repoIdentifier: basePath, filePaths: allFilePaths };
+      {% if not has_github_token %} if (isGithub) data.accessToken = document.getElementById('accessToken')?.value.trim(); {% endif %}
+      try {
+        const contents = await fetchData('/api/file-contents', data, true);
+        document.getElementById('outputText').value = formatFullRepoContents(contents, selected);
+        document.getElementById('copyButton').classList.remove('hidden');
+        document.getElementById('downloadButton').classList.remove('hidden');
+      } catch (err) {
+        alert("Error: " + err.message);
+      }
+    });
+
+    // Copy to clipboard
+    document.getElementById('copyButton').addEventListener('click', () => {
+      const text = document.getElementById('outputText').value;
+      navigator.clipboard.writeText(text).then(() => {
+        const toast = document.createElement('div');
+        toast.className = 'toast toast-end';
+        toast.innerHTML = `
+          <div class="alert alert-success">
+            <i class="fa-solid fa-check-circle"></i>
+            <span>Copied to clipboard!</span>
+          </div>
+        `;
+        document.body.appendChild(toast);
+        setTimeout(() => {
+          toast.remove();
+        }, 2000);
+      });
+    });
+
+    // Download
+    document.getElementById('downloadButton').addEventListener('click', () => {
+      const text = document.getElementById('outputText').value;
+      if (!text.trim()) return alert("No content to download.");
+      downloadBlob(new Blob([text], { type: 'text/plain' }), 'prompt.txt');
+    });
+
+    // Groupings
+    document.getElementById('saveGrouping').addEventListener('click', async () => {
+      const groupingName = document.getElementById('groupingName').value.trim();
+      const selected = getSelectedFiles();
+      if (!groupingName) return alert("Enter a grouping name.");
+      if (!selected.length) return alert("No files selected to save in grouping.");
+      const data = { repoIdentifier: basePath, groupingName, filePaths: selected.map(f => f.path) };
+      try {
+        const result = await fetchData('/api/save-grouping', data);
+        alert(result.message);
+        await loadGroupings();
+      } catch (err) {
+        alert("Error saving grouping: " + err.message);
+      }
+    });
+
+    document.getElementById('loadGrouping').addEventListener('click', () => {
+      const selectedName = document.getElementById('groupingSelect').value;
+      if (!selectedName) return alert("Please select a grouping to load.");
+
+      const allCheckboxes = document.querySelectorAll('#directoryStructure input[type="checkbox"]');
+      allCheckboxes.forEach(cb => {
+        cb.checked = false;
+        cb.indeterminate = false;
+      });
+
+      const grouping = groupings.find(g => g.name === selectedName);
+      if (grouping && grouping.files.length) {
+        grouping.files.forEach(file => {
+          const cb = document.querySelector(`#directoryStructure input[type="checkbox"][data-path="${file.path}"]`);
+          if (cb) {
+            cb.checked = true;
+            updateParentCheckbox(cb);
+          }
+        });
+        updateExtensionBubbles();
+      } else {
+        alert("No files found in this grouping or grouping not loaded correctly.");
+      }
+    });
   });
 </script>
-<!-- We remove 'async' here to reduce race conditions with the tokenizer -->
 <script src="https://unpkg.com/gpt-tokenizer"></script>

@@ -1,15 +1,52 @@
 <div id="githubMode" class="space-y-4">
-  <label class="label"><span class="label-text">GitHub URL</span></label>
-  <input type="text" id="repoUrl" class="input input-bordered w-full" placeholder="https://github.com/owner/repo..." />
+  <div class="form-control">
+    <label class="label">
+      <span class="label-text font-medium">GitHub URL</span>
+      <span class="label-text-alt text-info"><i class="fa-solid fa-circle-info"></i> Enter full repository URL</span>
+    </label>
+    <div class="join w-full">
+      <div class="join-item flex items-center px-3 bg-base-200 border border-r-0 border-base-300 rounded-l-lg">
+        <i class="fa-brands fa-github text-base-content"></i>
+      </div>
+      <input type="text" id="repoUrl" class="input input-bordered join-item w-full" placeholder="https://github.com/owner/repo..." />
+    </div>
+  </div>
+  
   {% if not has_github_token %}
-  <label class="label"><span class="label-text">GitHub Token (optional)</span></label>
-  <input type="text" id="accessToken" class="input input-bordered w-full" placeholder="token..." />
+  <div class="form-control">
+    <label class="label">
+      <span class="label-text font-medium">GitHub Token (optional)</span>
+      <span class="label-text-alt text-info"><i class="fa-solid fa-circle-info"></i> Required for private repos</span>
+    </label>
+    <div class="join w-full">
+      <div class="join-item flex items-center px-3 bg-base-200 border border-r-0 border-base-300 rounded-l-lg">
+        <i class="fa-solid fa-key text-base-content"></i>
+      </div>
+      <input type="password" id="accessToken" class="input input-bordered join-item w-full" placeholder="token..." />
+    </div>
+  </div>
   {% endif %}
-  <button id="fetchGitHub" class="btn btn-primary w-full">Fetch GitHub Directory</button>
+  
+  <button id="fetchGitHub" class="btn btn-primary w-full mt-6">
+    <i class="fa-solid fa-cloud-arrow-down mr-2"></i> Fetch GitHub Directory
+  </button>
 </div>
 
 <div id="localMode" class="space-y-4 hidden">
-  <label class="label"><span class="label-text">Local Path</span></label>
-  <input type="text" id="localPath" class="input input-bordered w-full" placeholder="/home/user/myrepo" />
-  <button id="fetchLocal" class="btn btn-primary w-full">Fetch Local Directory</button>
+  <div class="form-control">
+    <label class="label">
+      <span class="label-text font-medium">Local Path</span>
+      <span class="label-text-alt text-info"><i class="fa-solid fa-circle-info"></i> Full directory path</span>
+    </label>
+    <div class="join w-full">
+      <div class="join-item flex items-center px-3 bg-base-200 border border-r-0 border-base-300 rounded-l-lg">
+        <i class="fa-solid fa-folder text-base-content"></i>
+      </div>
+      <input type="text" id="localPath" class="input input-bordered join-item w-full" placeholder="/home/user/myrepo" />
+    </div>
+  </div>
+  
+  <button id="fetchLocal" class="btn btn-primary w-full mt-6">
+    <i class="fa-solid fa-folder-open mr-2"></i> Fetch Local Directory
+  </button>
 </div>

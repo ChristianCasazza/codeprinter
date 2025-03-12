@@ -1,17 +1,85 @@
-<div id="{{ progress_id }}" class="mt-4 hidden flex items-center">
-  <div class="w-full bg-gray-200 rounded-full h-4 relative">
-    <div id="{{ progress_id }}Bar" class="bg-primary h-4 rounded-full" style="width: 0%; transition: width 0.1s ease-in-out;"></div>
+<div id="{{ progress_id }}" class="mt-4 hidden">
+  <div class="flex justify-between mb-1">
+    <span class="text-xs font-medium text-primary">Loading...</span>
+    <span id="{{ progress_id }}Percent" class="text-xs font-medium text-primary">0%</span>
   </div>
-  <div id="{{ progress_id }}Celebration" class="ml-2 text-2xl hidden animate-firework">🎆</div>
+  <div class="w-full bg-base-200 rounded-full h-2.5 shadow-inner">
+    <div id="{{ progress_id }}Bar" class="bg-primary h-2.5 rounded-full transition-all duration-300 ease-out" style="width: 0%"></div>
+  </div>
+  <div id="{{ progress_id }}Celebration" class="hidden">
+    <div class="alert alert-success shadow-sm mt-2">
+      <div>
+        <i class="fa-solid fa-check-circle"></i>
+        <span>Completed successfully!</span>
+      </div>
+    </div>
+  </div>
 </div>
 
-<style>
-  @keyframes firework {
-    0% { transform: translateX(0) scale(1); opacity: 1; }
-    50% { transform: translateX(20px) scale(1.5); opacity: 0.8; }
-    100% { transform: translateX(40px) scale(1); opacity: 0; }
-  }
-  .animate-firework {
-    animation: firework 0.5s ease-out forwards;
-  }
-</style>
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    // Update progress bar
+    function simulateProgress(progressBar, percentEl, startTime) {
+      const elapsed = (Date.now() - startTime) / 1000; // seconds
+      let percent = Math.min(95, elapsed * 20); // Cap at 95% until complete
+      
+      if (progressBar) {
+        progressBar.style.width = `${percent}%`;
+        if (percentEl) percentEl.textContent = `${Math.round(percent)}%`;
+      }
+      
+      if (percent < 95) {
+        requestAnimationFrame(() => simulateProgress(progressBar, percentEl, startTime));
+      }
+    }
+    
+    // Hook into the existing progress display logic
+    const originalShowProgress = window.showProgress || function() {};
+    window.showProgress = function(id) {
+      const container = document.getElementById(id);
+      const progressBar = document.getElementById(`${id}Bar`);
+      const percentEl = document.getElementById(`${id}Percent`);
+      
+      if (container) {
+        container.classList.remove('hidden');
+        if (progressBar) {
+          progressBar.style.width = '0%';
+          simulateProgress(progressBar, percentEl, Date.now());
+        }
+      }
+      
+      // Call original if it exists
+      if (typeof originalShowProgress === 'function') {
+        originalShowProgress(id);
+      }
+    };
+    
+    const originalHideProgress = window.hideProgress || function() {};
+    window.hideProgress = function(id, success = true) {
+      const container = document.getElementById(id);
+      const progressBar = document.getElementById(`${id}Bar`);
+      const celebration = document.getElementById(`${id}Celebration`);
+      const percentEl = document.getElementById(`${id}Percent`);
+      
+      if (progressBar) {
+        progressBar.style.width = '100%';
+        if (percentEl) percentEl.textContent = '100%';
+      }
+      
+      if (success && celebration) {
+        celebration.classList.remove('hidden');
+        setTimeout(() => {
+          celebration.classList.add('hidden');
+          if (container) container.classList.add('hidden');
+        }, 1500);
+      } else if (container) {
+        container.classList.add('hidden');
+      }
+      
+      // Call original if it exists
+      if (typeof originalHideProgress === 'function') {
+        originalHideProgress(id, success);
+      }
+    };
+  });
+</script>

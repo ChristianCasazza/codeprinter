@@ -1,6 +1,255 @@
-<div id="tokenCount" class="mt-4 text-sm text-gray-600 text-center"></div>
-<textarea id="outputText" rows="12" class="textarea textarea-bordered w-full mt-4 border-gray-300" placeholder="Generated output will appear here..."></textarea>
-<div class="mt-4 flex gap-4">
-  <button id="copyButton" class="btn btn-info flex-1 hidden">Copy to Clipboard</button>
-  <button id="downloadButton" class="btn btn-secondary flex-1 hidden">Download Text File</button>
+<div class="divider divider-neutral mt-6">
+  <i class="fa-solid fa-file-alt mr-2"></i> Generated Output
 </div>
+
+<div class="card bg-base-100 border border-base-300 shadow-md mt-4 image-full overflow-hidden">
+  <figure class="opacity-10">
+    <div class="w-full h-full bg-gradient-to-br from-primary/10 to-accent/10"></div>
+  </figure>
+  <div class="card-body p-4">
+    <div class="flex justify-between items-center">
+      <h3 class="card-title text-base">
+        <i class="fa-solid fa-code mr-2"></i> Code Output
+      </h3>
+      <div class="flex items-center gap-2">
+        <div id="tokenCount" class="badge badge-primary badge-lg badge-outline"></div>
+        <div class="dropdown dropdown-end">
+          <label tabindex="0" class="btn btn-circle btn-ghost btn-xs">
+            <i class="fa-solid fa-ellipsis-vertical"></i>
+          </label>
+          <ul tabindex="0" class="dropdown-content z-[1] menu menu-sm shadow bg-base-200 rounded-box w-36">
+            <li><a onclick="toggleSyntaxHighlight()"><i class="fa-solid fa-highlighter mr-2"></i> Toggle Syntax</a></li>
+            <li><a onclick="clearOutput()"><i class="fa-solid fa-trash-alt mr-2"></i> Clear Output</a></li>
+            <li><a onclick="toggleWordWrap()"><i class="fa-solid fa-text-width mr-2"></i> Toggle Wrap</a></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    
+    <div class="output-container mt-4 relative rounded-box border border-base-300 bg-base-200 shadow-inner h-72 overflow-hidden">
+      <div class="absolute top-0 right-0 p-2 flex gap-2 opacity-70 z-10">
+        <div class="tooltip" data-tip="Fullscreen">
+          <button id="expandButton" class="btn btn-circle btn-xs btn-ghost" onclick="toggleFullScreen()">
+            <i class="fa-solid fa-expand"></i>
+          </button>
+        </div>
+      </div>
+      
+      <div class="mockup-code h-full overflow-auto hidden" id="highlightView">
+        <pre><code id="highlightedOutput" class="overflow-visible whitespace-pre-wrap"></code></pre>
+      </div>
+      
+      <textarea id="outputText" class="textarea w-full h-full font-mono resize-none bg-transparent border-none focus:outline-none" placeholder="Generated output will appear here..." spellcheck="false"></textarea>
+    </div>
+    
+    <!-- Progress bars for token usage visualization -->
+    <div class="mt-4 token-usage-container hidden">
+      <div class="flex justify-between text-xs mb-1">
+        <span>Token Usage</span>
+        <span id="tokenPercentage">0%</span>
+      </div>
+      <div class="w-full bg-base-300 rounded-full h-1.5">
+        <div id="tokenProgressBar" class="bg-primary rounded-full h-1.5" style="width: 0%"></div>
+      </div>
+    </div>
+    
+    <div class="card-actions justify-end gap-2 mt-4">
+      <button id="copyButton" class="btn btn-info gap-2 hidden">
+        <i class="fa-solid fa-copy"></i> Copy
+      </button>
+      <button id="downloadButton" class="btn btn-secondary gap-2 hidden">
+        <i class="fa-solid fa-download"></i> Download
+      </button>
+    </div>
+  </div>
+</div>
+
+<style>
+  /* Output section enhancements */
+  .output-container {
+    transition: height 0.3s ease;
+  }
+  
+  .output-container.fullscreen {
+    position: fixed;
+    top: 20px;
+    left: 20px;
+    right: 20px;
+    bottom: 20px;
+    height: calc(100% - 40px) !important;
+    width: calc(100% - 40px);
+    z-index: 1000;
+    border-radius: 8px;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  }
+  
+  .output-container.fullscreen #outputText,
+  .output-container.fullscreen #highlightView {
+    height: 100%;
+  }
+  
+  .mockup-code {
+    font-size: 0.875rem;
+    padding: 1rem;
+  }
+  
+  /* Token usage visualization */
+  .token-usage-container {
+    animation: fadeIn 0.5s ease;
+  }
+  
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  /* Darken code output text and lighten background for readability */
+  #outputText,
+  #highlightedOutput {
+    color: #111 !important;
+    background-color: #e0e0e0 !important;
+  }
+
+  /* Make token count more visible on a lighter background */
+  #tokenCount {
+    color: #111 !important;
+    background-color: #ccc !important;
+    border: none !important;
+  }
+</style>
+
+<script>
+  let isFullscreen = false;
+  let isSyntaxHighlighted = false;
+  let isWrapped = true;
+  
+  function toggleFullScreen() {
+    const container = document.querySelector('.output-container');
+    const expandButton = document.getElementById('expandButton');
+    
+    if (!container) return;
+    
+    isFullscreen = !isFullscreen;
+    container.classList.toggle('fullscreen', isFullscreen);
+    
+    if (isFullscreen) {
+      expandButton.innerHTML = '<i class="fa-solid fa-compress"></i>';
+      document.body.style.overflow = 'hidden';
+    } else {
+      expandButton.innerHTML = '<i class="fa-solid fa-expand"></i>';
+      document.body.style.overflow = '';
+    }
+  }
+  
+  function toggleSyntaxHighlight() {
+    const textarea = document.getElementById('outputText');
+    const highlightView = document.getElementById('highlightView');
+    const highlightedOutput = document.getElementById('highlightedOutput');
+    
+    if (!textarea || !highlightView || !highlightedOutput) return;
+    
+    isSyntaxHighlighted = !isSyntaxHighlighted;
+    
+    if (isSyntaxHighlighted) {
+      // Apply very basic syntax highlighting
+      const content = textarea.value;
+      const highlighted = applyBasicHighlighting(content);
+      highlightedOutput.innerHTML = highlighted;
+      
+      textarea.classList.add('hidden');
+      highlightView.classList.remove('hidden');
+    } else {
+      textarea.classList.remove('hidden');
+      highlightView.classList.add('hidden');
+    }
+  }
+  
+  function applyBasicHighlighting(code) {
+    // This is a simplistic approach
+    return code
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/(".*?")/g, '<span class="text-success">$1</span>')
+      .replace(/(\'.*?\')/g, '<span class="text-success">$1</span>')
+      .replace(/\b(function|const|let|var|if|else|return|import|export|from|class|for|while)\b/g, 
+               '<span class="text-primary">$1</span>')
+      .replace(/\b(true|false|null|undefined)\b/g, 
+               '<span class="text-warning">$1</span>')
+      .replace(/(\/\/.*)$/gm, '<span class="text-base-content opacity-60">$1</span>')
+      .replace(/^(.*?):/gm, '<span class="text-secondary">$1</span>:');
+  }
+  
+  function clearOutput() {
+    const textarea = document.getElementById('outputText');
+    const highlightedOutput = document.getElementById('highlightedOutput');
+    const tokenCount = document.getElementById('tokenCount');
+    const tokenContainer = document.querySelector('.token-usage-container');
+    
+    if (textarea) textarea.value = '';
+    if (highlightedOutput) highlightedOutput.innerHTML = '';
+    if (tokenCount) tokenCount.textContent = '';
+    if (tokenContainer) tokenContainer.classList.add('hidden');
+    
+    document.getElementById('copyButton').classList.add('hidden');
+    document.getElementById('downloadButton').classList.add('hidden');
+  }
+  
+  function toggleWordWrap() {
+    const textarea = document.getElementById('outputText');
+    const highlightedOutput = document.getElementById('highlightedOutput');
+    
+    isWrapped = !isWrapped;
+    
+    if (textarea) {
+      textarea.style.whiteSpace = isWrapped ? 'pre-wrap' : 'pre';
+    }
+    
+    if (highlightedOutput) {
+      highlightedOutput.style.whiteSpace = isWrapped ? 'pre-wrap' : 'pre';
+    }
+  }
+  
+  function updateTokenDisplay(count) {
+    const tokenCount = document.getElementById('tokenCount');
+    const tokenBar = document.getElementById('tokenProgressBar');
+    const tokenPercentage = document.getElementById('tokenPercentage');
+    const tokenContainer = document.querySelector('.token-usage-container');
+    
+    if (!tokenCount || !tokenBar || !tokenPercentage || !tokenContainer) return;
+    
+    tokenContainer.classList.remove('hidden');
+    tokenCount.textContent = `${count.toLocaleString()} tokens`;
+    
+    const maxTokens = 4000;
+    const percentage = Math.min(100, (count / maxTokens) * 100);
+    
+    tokenBar.style.width = `${percentage}%`;
+    tokenPercentage.textContent = `${Math.round(percentage)}%`;
+    
+    if (percentage > 90) {
+      tokenBar.className = 'bg-error rounded-full h-1.5';
+    } else if (percentage > 70) {
+      tokenBar.className = 'bg-warning rounded-full h-1.5';
+    } else {
+      tokenBar.className = 'bg-primary rounded-full h-1.5';
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    const originalTokenCountUpdate = window.updateTokenCount || function() {};
+    window.updateTokenCount = function(text) {
+      if (typeof originalTokenCountUpdate === 'function') {
+        originalTokenCountUpdate(text);
+      }
+      try {
+        if (typeof GPTTokenizer_cl100k_base !== 'undefined') {
+          const tokens = GPTTokenizer_cl100k_base.encode(text).length;
+          updateTokenDisplay(tokens);
+        }
+      } catch (err) {
+        console.error("Token count error:", err);
+      }
+    };
+  });
+</script>
