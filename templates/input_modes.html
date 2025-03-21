@@ -8,7 +8,10 @@
       <div class="join-item flex items-center px-3 bg-base-200 border border-r-0 border-base-300 rounded-l-lg">
         <i class="fa-brands fa-github text-base-content"></i>
       </div>
-      <input type="text" id="repoUrl" class="input input-bordered join-item w-full" placeholder="https://github.com/owner/repo..." />
+      <input type="text" id="repoUrl" class="input input-bordered join-item w-full" placeholder="https://github.com/owner/repo..." list="githubReposList" />
+      <datalist id="githubReposList">
+        <!-- Options will be populated from saved paths -->
+      </datalist>
     </div>
   </div>
   
@@ -42,7 +45,10 @@
       <div class="join-item flex items-center px-3 bg-base-200 border border-r-0 border-base-300 rounded-l-lg">
         <i class="fa-solid fa-folder text-base-content"></i>
       </div>
-      <input type="text" id="localPath" class="input input-bordered join-item w-full" placeholder="/home/user/myrepo" />
+      <input type="text" id="localPath" class="input input-bordered join-item w-full" placeholder="/home/user/myrepo" list="localPathsList" />
+      <datalist id="localPathsList">
+        <!-- Options will be populated from saved paths -->
+      </datalist>
     </div>
   </div>
   

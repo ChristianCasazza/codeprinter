@@ -1,4 +1,5 @@
 import os
+import json
 from datetime import datetime
 import sqlite3
 import concurrent.futures
@@ -7,10 +8,23 @@ from .config import app, GITHUB_TOKEN, DB_PATH
 from .utils import safe_path
 from .github_api import (parse_repo_url, get_github_refs, get_repo_default_branch,
                          fetch_repo_sha, fetch_repo_tree, fetch_github_file)
+from .database import save_path_history, get_path_history, save_selection, get_last_selection
 
 @app.route("/")
 def index():
     return render_template("index.html", has_github_token=bool(GITHUB_TOKEN))
+
+@app.route("/api/get-saved-paths", methods=["POST"])
+def get_saved_paths():
+    """API endpoint to retrieve saved path history"""
+    data = request.get_json()
+    path_type = data.get("type", "").strip()
+    
+    if not path_type or path_type not in ["github", "local"]:
+        return jsonify({"error": "Invalid path type"}), 400
+        
+    paths = get_path_history(path_type)
+    return jsonify({"paths": paths})
 
 @app.route("/api/local-tree", methods=["POST"])
 def local_tree():
@@ -20,6 +34,9 @@ def local_tree():
         return jsonify({"error": "No path provided"}), 400
     if not os.path.exists(local_path):
         return jsonify({"error": f"Path does not exist: {local_path}"}), 404
+
+    # Save this path to history for future use
+    save_path_history("local", local_path)
 
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
@@ -41,8 +58,16 @@ def local_tree():
 
     c.execute("SELECT repo_id, path, url_type, url FROM files WHERE repo_id = ?", (repo_id,))
     result_tree = [{"repoId": row[0], "path": row[1], "type": "blob", "urlType": row[2], "url": row[3]} for row in c.fetchall()]
+    
+    # Get last selection for this repo if it exists
+    last_selection = get_last_selection(repo_id)
+    
     conn.close()
-    return jsonify(result_tree)
+    return jsonify({
+        "tree": result_tree,
+        "repoId": repo_id,
+        "lastSelection": last_selection
+    })
 
 @app.route("/api/github-tree", methods=["POST"])
 def github_tree():
@@ -51,6 +76,9 @@ def github_tree():
     token = GITHUB_TOKEN if GITHUB_TOKEN else data.get("accessToken", "").strip()
     if not repo_url:
         return jsonify({"error": "No repository URL provided"}), 400
+
+    # Save this GitHub repo URL to history
+    save_path_history("github", repo_url)
 
     try:
         owner, repo, last_string = parse_repo_url(repo_url)
@@ -112,8 +140,16 @@ def github_tree():
 
         c.execute("SELECT repo_id, path, url_type, url FROM files WHERE repo_id = ?", (repo_id,))
         result_tree = [{"repoId": row[0], "path": row[1], "type": "blob", "urlType": row[2], "url": row[3]} for row in c.fetchall()]
+        
+        # Get last selection for this repo if it exists
+        last_selection = get_last_selection(repo_id)
+        
         conn.close()
-        return jsonify(result_tree)
+        return jsonify({
+            "tree": result_tree,
+            "repoId": repo_id,
+            "lastSelection": last_selection
+        })
     except ValueError as e:
         conn.close()
         return jsonify({"error": str(e)}), 400
@@ -237,3 +273,21 @@ def get_groupings():
         return jsonify({"error": f"Database error: {str(e)}"}), 500
     finally:
         conn.close()
+        
+@app.route("/api/save-selection", methods=["POST"])
+def save_current_selection():
+    """Save the current file selection for a repository"""
+    data = request.get_json()
+    repo_id = data.get("repoId")
+    selection = data.get("selection")
+    
+    if not repo_id or not isinstance(selection, list):
+        return jsonify({"error": "Missing repo ID or invalid selection data"}), 400
+        
+    try:
+        # Convert selection to JSON string
+        selection_json = json.dumps(selection)
+        save_selection(repo_id, selection_json)
+        return jsonify({"status": "success", "message": "Selection saved"})
+    except Exception as e:
+        return jsonify({"error": f"Error saving selection: {str(e)}"}), 500

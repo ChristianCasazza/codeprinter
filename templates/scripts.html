@@ -4,7 +4,7 @@
 
     // Constants
     // ALLOWED_EXTENSIONS remain the same
-    const ALLOWED_EXTENSIONS = ['.json', '.py', '.js', '.ts', '.sql', '.yml', '.svelte', '.md', '.tsx', '.yaml', '.tsx', '.css', '.html', '.txt', '.toml'];
+    const ALLOWED_EXTENSIONS = ['.json', '.py', '.js', '.ts', '.sql', '.yml', '.svelte', '.md', '.tsx', '.yaml', '.tsx', '.css', '.html', '.sh', '.bat', '.txt', '.toml'];
     
     // Darker custom colors for all extensions, plus white text
     function getExtensionColors() {
@@ -40,6 +40,7 @@
     let currentTree = [];
     let isGithub = false;
     let basePath = '';
+    let currentRepoId = null;
 
     function toggleMode(github) {
       console.log("Toggling mode to:", github ? "GitHub" : "Local");
@@ -124,8 +125,88 @@
       return selected;
     }
 
-    function displayDirectoryStructure(tree) {
+    // Function to load saved GitHub URLs
+    async function loadSavedGithubRepos() {
+      try {
+        const result = await fetchData('/api/get-saved-paths', { type: 'github' });
+        if (result.paths && result.paths.length > 0) {
+          const dataList = document.getElementById('githubReposList');
+          if (dataList) {
+            dataList.innerHTML = '';
+            result.paths.forEach(path => {
+              const option = document.createElement('option');
+              option.value = path;
+              dataList.appendChild(option);
+            });
+          }
+        }
+      } catch (err) {
+        console.error("Error loading saved GitHub repositories:", err);
+      }
+    }
+    
+    // Function to load saved local paths
+    async function loadSavedLocalPaths() {
+      try {
+        const result = await fetchData('/api/get-saved-paths', { type: 'local' });
+        if (result.paths && result.paths.length > 0) {
+          const dataList = document.getElementById('localPathsList');
+          if (dataList) {
+            dataList.innerHTML = '';
+            result.paths.forEach(path => {
+              const option = document.createElement('option');
+              option.value = path;
+              dataList.appendChild(option);
+            });
+          }
+        }
+      } catch (err) {
+        console.error("Error loading saved local paths:", err);
+      }
+    }
+    
+    // Apply a saved selection to the UI
+    function applySelection(selectionData) {
+      if (!selectionData) return;
+      
+      try {
+        // Parse JSON if it's a string
+        const selection = typeof selectionData === 'string' ? JSON.parse(selectionData) : selectionData;
+        
+        if (!Array.isArray(selection)) {
+          console.error("Invalid selection format:", selection);
+          return;
+        }
+        
+        // Get all checkboxes
+        const allCheckboxes = document.querySelectorAll('#directoryStructure input[type="checkbox"]');
+        
+        // First uncheck all
+        allCheckboxes.forEach(cb => {
+          cb.checked = false;
+          cb.indeterminate = false;
+        });
+        
+        // Then check the ones in the selection
+        selection.forEach(path => {
+          const cb = document.querySelector(`#directoryStructure input[type="checkbox"][data-path="${path}"]`);
+          if (cb) {
+            cb.checked = true;
+            updateParentCheckbox(cb);
+          }
+        });
+        
+        updateExtensionBubbles();
+      } catch (err) {
+        console.error("Error applying selection:", err);
+      }
+    }
+
+    function displayDirectoryStructure(tree, repoId, lastSelection) {
       console.log("Displaying directory structure with tree:", tree);
+      // Store the repo ID for selection saving
+      currentRepoId = repoId;
+      
       const container = document.getElementById('directoryStructure');
       const extContainer = document.getElementById('extBubbleContainer');
       container.innerHTML = '';
@@ -291,6 +372,11 @@
       });
 
       updateExtensionBubbles();
+      
+      // Apply last selection if available
+      if (lastSelection) {
+        applySelection(lastSelection);
+      }
     }
 
     function updateParentCheckbox(checkbox) {
@@ -331,6 +417,27 @@
         const allSelected = Array.from(extContainer.querySelectorAll('.ext-bubble:not(#allBubble)'))
           .every(bubble => bubble.classList.contains('selected'));
         allBubble.classList.toggle('selected', allSelected);
+      }
+      
+      // Save current selection to database if we have a repo ID
+      if (currentRepoId) {
+        saveCurrentSelection();
+      }
+    }
+    
+    // Save the current file selection to the database
+    async function saveCurrentSelection() {
+      const selectedFiles = getSelectedFiles();
+      const selection = selectedFiles.map(f => f.path);
+      
+      try {
+        await fetchData('/api/save-selection', {
+          repoId: currentRepoId,
+          selection: selection
+        });
+        console.log("Selection saved to database");
+      } catch (err) {
+        console.error("Error saving selection:", err);
       }
     }
 
@@ -439,11 +546,21 @@
     const githubTabBtn = document.getElementById('githubTabBtn');
     const localTabBtn = document.getElementById('localTabBtn');
     if (githubTabBtn) {
-      githubTabBtn.addEventListener('click', () => toggleMode(true));
+      githubTabBtn.addEventListener('click', () => {
+        toggleMode(true);
+        loadSavedGithubRepos(); // Load saved GitHub repos when switching to GitHub mode
+      });
     }
     if (localTabBtn) {
-      localTabBtn.addEventListener('click', () => toggleMode(false));
+      localTabBtn.addEventListener('click', () => {
+        toggleMode(false);
+        loadSavedLocalPaths(); // Load saved local paths when switching to local mode
+      });
     }
+
+    // Load saved paths when the page loads
+    loadSavedGithubRepos();
+    loadSavedLocalPaths();
 
     // Fetch GitHub or Local
     const fetchGitHubBtn = document.getElementById('fetchGitHub');
@@ -459,8 +576,10 @@
         try {
           const data = { repoUrl };
           {% if not has_github_token %}data.accessToken = document.getElementById('accessToken')?.value.trim();{% endif %}
-          currentTree = await fetchData('/api/github-tree', data);
-          displayDirectoryStructure(currentTree);
+          const result = await fetchData('/api/github-tree', data);
+          currentTree = result.tree;
+          currentRepoId = result.repoId;
+          displayDirectoryStructure(currentTree, currentRepoId, result.lastSelection);
           showActionButtons();
           await loadGroupings();
         } catch (err) {
@@ -480,8 +599,10 @@
         isGithub = false;
         basePath = localPath;
         try {
-          currentTree = await fetchData('/api/local-tree', { localPath });
-          displayDirectoryStructure(currentTree);
+          const result = await fetchData('/api/local-tree', { localPath });
+          currentTree = result.tree;
+          currentRepoId = result.repoId;
+          displayDirectoryStructure(currentTree, currentRepoId, result.lastSelection);
           showActionButtons();
           await loadGroupings();
         } catch (err) {
