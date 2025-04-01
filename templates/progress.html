@@ -1,12 +1,19 @@
-<div id="{{ progress_id }}" class="mt-4 hidden">
+<div id="{{ progress_id }}" class="mt-4 hidden animate__animated animate__fadeIn">
   <div class="flex justify-between mb-1">
-    <span class="text-xs font-medium text-primary">Loading...</span>
+    <span class="text-xs font-medium text-primary flex items-center">
+      <i class="fa-solid fa-spinner fa-spin-pulse mr-2"></i> Processing...
+    </span>
     <span id="{{ progress_id }}Percent" class="text-xs font-medium text-primary">0%</span>
   </div>
-  <div class="w-full bg-base-200 rounded-full h-2.5 shadow-inner">
-    <div id="{{ progress_id }}Bar" class="bg-primary h-2.5 rounded-full transition-all duration-300 ease-out" style="width: 0%"></div>
+  <div class="w-full bg-base-200 rounded-full h-2.5 shadow-inner overflow-hidden">
+    <div id="{{ progress_id }}Bar" class="bg-primary h-2.5 rounded-full transition-all duration-300 ease-out relative" style="width: 0%">
+      <!-- Animated stripe effect -->
+      <div class="absolute inset-0 overflow-hidden">
+        <div class="progress-stripe"></div>
+      </div>
+    </div>
   </div>
-  <div id="{{ progress_id }}Celebration" class="hidden">
+  <div id="{{ progress_id }}Celebration" class="hidden animate__animated animate__fadeIn">
     <div class="alert alert-success shadow-sm mt-2">
       <div>
         <i class="fa-solid fa-check-circle"></i>
@@ -16,19 +23,57 @@
   </div>
 </div>
 
+<style>
+  /* Animated progress bar stripes */
+  .progress-stripe {
+    background-image: linear-gradient(
+      45deg,
+      rgba(255, 255, 255, 0.15) 25%,
+      transparent 25%,
+      transparent 50%,
+      rgba(255, 255, 255, 0.15) 50%,
+      rgba(255, 255, 255, 0.15) 75%,
+      transparent 75%,
+      transparent
+    );
+    background-size: 20px 20px;
+    width: 200%;
+    height: 100%;
+    animation: progress-stripe 1s linear infinite;
+  }
+  
+  @keyframes progress-stripe {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+  }
+  
+  /* Enhanced celebration styles */
+  #{{ progress_id }}Celebration .alert {
+    border-left: 4px solid var(--success);
+  }
+  
+  #{{ progress_id }}Celebration .alert i {
+    color: var(--success);
+  }
+</style>
+
 <script>
   document.addEventListener('DOMContentLoaded', () => {
-    // Update progress bar
+    // Update progress bar with smoother simulation
     function simulateProgress(progressBar, percentEl, startTime) {
       const elapsed = (Date.now() - startTime) / 1000; // seconds
-      let percent = Math.min(95, elapsed * 20); // Cap at 95% until complete
+      
+      // Use a sigmoid curve for more realistic progress simulation
+      // This starts slow, speeds up in the middle, then slows down approaching completion
+      const sigmoid = x => 1 / (1 + Math.exp(-x + 5));
+      const percent = Math.min(92, sigmoid(elapsed * 1.5) * 100);
       
       if (progressBar) {
         progressBar.style.width = `${percent}%`;
         if (percentEl) percentEl.textContent = `${Math.round(percent)}%`;
       }
       
-      if (percent < 95) {
+      if (percent < 92) {
         requestAnimationFrame(() => simulateProgress(progressBar, percentEl, startTime));
       }
     }
@@ -68,12 +113,25 @@
       
       if (success && celebration) {
         celebration.classList.remove('hidden');
+        
+        // Show confetti if available
+        if (typeof showCelebration === 'function') {
+          showCelebration(1500);
+        }
+        
+        // Show toast notification if available
+        if (typeof showToast === 'function') {
+          showToast("Operation completed successfully!", 'success');
+        }
+        
         setTimeout(() => {
           celebration.classList.add('hidden');
           if (container) container.classList.add('hidden');
         }, 1500);
       } else if (container) {
-        container.classList.add('hidden');
+        setTimeout(() => {
+          container.classList.add('hidden');
+        }, 500);
       }
       
       // Call original if it exists

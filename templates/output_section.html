@@ -12,15 +12,16 @@
         <i class="fa-solid fa-code mr-2"></i> Code Output
       </h3>
       <div class="flex items-center gap-2">
-        <div id="tokenCount" class="badge badge-primary badge-lg badge-outline"></div>
+        <div id="tokenCount" class="badge badge-primary badge-lg" data-tooltip="Total token count for LLM compatibility"></div>
         <div class="dropdown dropdown-end">
-          <label tabindex="0" class="btn btn-circle btn-ghost btn-xs">
+          <label tabindex="0" class="btn btn-circle btn-ghost btn-xs" data-tooltip="Output options">
             <i class="fa-solid fa-ellipsis-vertical"></i>
           </label>
-          <ul tabindex="0" class="dropdown-content z-[1] menu menu-sm shadow bg-base-200 rounded-box w-36">
-            <li><a onclick="toggleSyntaxHighlight()"><i class="fa-solid fa-highlighter mr-2"></i> Toggle Syntax</a></li>
-            <li><a onclick="clearOutput()"><i class="fa-solid fa-trash-alt mr-2"></i> Clear Output</a></li>
-            <li><a onclick="toggleWordWrap()"><i class="fa-solid fa-text-width mr-2"></i> Toggle Wrap</a></li>
+          <ul tabindex="0" class="dropdown-content z-[1] menu menu-sm shadow bg-base-200 rounded-box w-48">
+            <li><a onclick="toggleSyntaxHighlight()" data-tooltip="Toggle syntax highlighting"><i class="fa-solid fa-highlighter mr-2"></i> Toggle Syntax</a></li>
+            <li><a onclick="clearOutput()" data-tooltip="Clear the output content"><i class="fa-solid fa-trash-alt mr-2"></i> Clear Output</a></li>
+            <li><a onclick="toggleWordWrap()" data-tooltip="Toggle text wrapping"><i class="fa-solid fa-text-width mr-2"></i> Toggle Wrap</a></li>
+            <li><a onclick="toggleFullScreen()" data-tooltip="Expand to fullscreen mode"><i class="fa-solid fa-expand mr-2"></i> Fullscreen</a></li>
           </ul>
         </div>
       </div>
@@ -39,7 +40,15 @@
         <pre><code id="highlightedOutput" class="overflow-visible whitespace-pre-wrap"></code></pre>
       </div>
       
-      <textarea id="outputText" class="textarea w-full h-full font-mono resize-none bg-transparent border-none focus:outline-none" placeholder="Generated output will appear here..." spellcheck="false"></textarea>
+      <textarea id="outputText" class="textarea w-full h-full font-mono resize-none bg-transparent border-none focus:outline-none p-4" placeholder="Generated output will appear here..." spellcheck="false"></textarea>
+      
+      <!-- Empty state illustration -->
+      <div id="emptyStateOverlay" class="absolute inset-0 flex flex-col items-center justify-center bg-base-200 bg-opacity-90 pointer-events-none" style="z-index: 2;">
+        <i class="fa-solid fa-code text-6xl text-base-content opacity-20 mb-4"></i>
+        <p class="text-base-content opacity-50 text-center max-w-xs">
+          Select files and click "Generate" to create formatted output for LLMs
+        </p>
+      </div>
     </div>
     
     <!-- Progress bars for token usage visualization -->
@@ -48,8 +57,13 @@
         <span>Token Usage</span>
         <span id="tokenPercentage">0%</span>
       </div>
-      <div class="w-full bg-base-300 rounded-full h-1.5">
-        <div id="tokenProgressBar" class="bg-primary rounded-full h-1.5" style="width: 0%"></div>
+      <div class="w-full bg-base-300 rounded-full h-2 overflow-hidden">
+        <div id="tokenProgressBar" class="bg-primary rounded-full h-2 transition-all duration-300" style="width: 0%"></div>
+      </div>
+      <div class="flex justify-between text-xs mt-1 text-opacity-70 text-base-content">
+        <span>0</span>
+        <span class="text-warning">2000</span>
+        <span class="text-error">4000</span>
       </div>
     </div>
     
@@ -67,25 +81,32 @@
 <style>
   /* Output section enhancements */
   .output-container {
-    transition: height 0.3s ease;
+    transition: all 0.3s ease;
+    position: relative;
+  }
+  
+  /* Ensure textarea is visible and has appropriate z-index */
+  #outputText {
+    z-index: 5;
+    position: relative;
   }
   
   .output-container.fullscreen {
-    position: fixed;
-    top: 20px;
-    left: 20px;
-    right: 20px;
-    bottom: 20px;
+    position: fixed !important;
+    top: 20px !important;
+    left: 20px !important;
+    right: 20px !important;
+    bottom: 20px !important;
     height: calc(100% - 40px) !important;
-    width: calc(100% - 40px);
-    z-index: 1000;
-    border-radius: 8px;
-    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    width: calc(100% - 40px) !important;
+    z-index: 1000 !important;
+    border-radius: 8px !important;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25) !important;
   }
   
   .output-container.fullscreen #outputText,
   .output-container.fullscreen #highlightView {
-    height: 100%;
+    height: 100% !important;
   }
   
   .mockup-code {
@@ -99,22 +120,42 @@
   }
   
   @keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
   }
 
-  /* Darken code output text and lighten background for readability */
+  /* Ensure better contrast for the output text */
   #outputText,
   #highlightedOutput {
-    color: #111 !important;
-    background-color: #e0e0e0 !important;
+    color: var(--base-content) !important;
   }
 
-  /* Make token count more visible on a lighter background */
+  /* Improved token count badge */
   #tokenCount {
-    color: #111 !important;
-    background-color: #ccc !important;
-    border: none !important;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    transition: all 0.3s ease;
+    animation: pulse 2s infinite;
+  }
+  
+  @keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+  }
+  
+  /* Empty state animation */
+  #emptyStateOverlay {
+    transition: opacity 0.3s ease;
+  }
+  
+  #emptyStateOverlay i {
+    animation: float 6s ease-in-out infinite;
+  }
+  
+  @keyframes float {
+    0% { transform: translateY(0px); }
+    50% { transform: translateY(-10px); }
+    100% { transform: translateY(0px); }
   }
 </style>
 
@@ -135,9 +176,26 @@
     if (isFullscreen) {
       expandButton.innerHTML = '<i class="fa-solid fa-compress"></i>';
       document.body.style.overflow = 'hidden';
+      
+      // Add escape key listener for fullscreen mode
+      document.addEventListener('keydown', exitFullscreenOnEscape);
     } else {
       expandButton.innerHTML = '<i class="fa-solid fa-expand"></i>';
       document.body.style.overflow = '';
+      
+      // Remove escape key listener when not in fullscreen
+      document.removeEventListener('keydown', exitFullscreenOnEscape);
+    }
+    
+    // Show toast notification if available
+    if (typeof showToast === 'function') {
+      showToast(isFullscreen ? "Entered fullscreen mode" : "Exited fullscreen mode", 'info');
+    }
+  }
+  
+  function exitFullscreenOnEscape(e) {
+    if (e.key === 'Escape' && isFullscreen) {
+      toggleFullScreen();
     }
   }
   
@@ -145,39 +203,68 @@
     const textarea = document.getElementById('outputText');
     const highlightView = document.getElementById('highlightView');
     const highlightedOutput = document.getElementById('highlightedOutput');
+    const emptyStateOverlay = document.getElementById('emptyStateOverlay');
     
     if (!textarea || !highlightView || !highlightedOutput) return;
+    
+    // If there's content, hide the empty state
+    if (textarea.value.trim() && emptyStateOverlay) {
+      emptyStateOverlay.style.opacity = '0';
+    }
     
     isSyntaxHighlighted = !isSyntaxHighlighted;
     
     if (isSyntaxHighlighted) {
-      // Apply very basic syntax highlighting
+      // Apply syntax highlighting
       const content = textarea.value;
-      const highlighted = applyBasicHighlighting(content);
+      const highlighted = applyHighlighting(content);
       highlightedOutput.innerHTML = highlighted;
       
       textarea.classList.add('hidden');
       highlightView.classList.remove('hidden');
+      
+      if (typeof showToast === 'function') {
+        showToast("Syntax highlighting enabled", 'info');
+      }
     } else {
       textarea.classList.remove('hidden');
       highlightView.classList.add('hidden');
+      
+      if (typeof showToast === 'function') {
+        showToast("Syntax highlighting disabled", 'info');
+      }
     }
   }
   
-  function applyBasicHighlighting(code) {
-    // This is a simplistic approach
-    return code
+  function applyHighlighting(code) {
+    // Enhanced syntax highlighting
+    code = code
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')
+      // Highlight headings
+      .replace(/^(#{1,6}\s+.*)$/gm, '<span class="text-primary font-bold">$1</span>')
+      // Highlight code blocks
+      .replace(/```(\w*)([\s\S]*?)```/gm, function(match, lang, code) {
+        return `<div class="bg-base-300 rounded-md p-2 my-2"><span class="text-info text-xs">${lang || 'code'}</span><pre class="mt-1 overflow-x-auto">${code}</pre></div>`;
+      })
+      // Highlight inline code
+      .replace(/`([^`]+)`/g, '<span class="text-accent bg-accent bg-opacity-10 px-1 rounded">$1</span>')
+      // Highlight strings
       .replace(/(".*?")/g, '<span class="text-success">$1</span>')
       .replace(/(\'.*?\')/g, '<span class="text-success">$1</span>')
+      // Highlight keywords
       .replace(/\b(function|const|let|var|if|else|return|import|export|from|class|for|while)\b/g, 
                '<span class="text-primary">$1</span>')
+      // Highlight booleans and nulls
       .replace(/\b(true|false|null|undefined)\b/g, 
                '<span class="text-warning">$1</span>')
+      // Highlight comments
       .replace(/(\/\/.*)$/gm, '<span class="text-base-content opacity-60">$1</span>')
+      // Highlight properties
       .replace(/^(.*?):/gm, '<span class="text-secondary">$1</span>:');
+    
+    return code;
   }
   
   function clearOutput() {
@@ -185,14 +272,20 @@
     const highlightedOutput = document.getElementById('highlightedOutput');
     const tokenCount = document.getElementById('tokenCount');
     const tokenContainer = document.querySelector('.token-usage-container');
+    const emptyStateOverlay = document.getElementById('emptyStateOverlay');
     
     if (textarea) textarea.value = '';
     if (highlightedOutput) highlightedOutput.innerHTML = '';
     if (tokenCount) tokenCount.textContent = '';
     if (tokenContainer) tokenContainer.classList.add('hidden');
+    if (emptyStateOverlay) emptyStateOverlay.style.opacity = '1';
     
     document.getElementById('copyButton').classList.add('hidden');
     document.getElementById('downloadButton').classList.add('hidden');
+    
+    if (typeof showToast === 'function') {
+      showToast("Output cleared", 'info');
+    }
   }
   
   function toggleWordWrap() {
@@ -208,47 +301,43 @@
     if (highlightedOutput) {
       highlightedOutput.style.whiteSpace = isWrapped ? 'pre-wrap' : 'pre';
     }
-  }
-  
-  function updateTokenDisplay(count) {
-    const tokenCount = document.getElementById('tokenCount');
-    const tokenBar = document.getElementById('tokenProgressBar');
-    const tokenPercentage = document.getElementById('tokenPercentage');
-    const tokenContainer = document.querySelector('.token-usage-container');
     
-    if (!tokenCount || !tokenBar || !tokenPercentage || !tokenContainer) return;
-    
-    tokenContainer.classList.remove('hidden');
-    tokenCount.textContent = `${count.toLocaleString()} tokens`;
-    
-    const maxTokens = 4000;
-    const percentage = Math.min(100, (count / maxTokens) * 100);
-    
-    tokenBar.style.width = `${percentage}%`;
-    tokenPercentage.textContent = `${Math.round(percentage)}%`;
-    
-    if (percentage > 90) {
-      tokenBar.className = 'bg-error rounded-full h-1.5';
-    } else if (percentage > 70) {
-      tokenBar.className = 'bg-warning rounded-full h-1.5';
-    } else {
-      tokenBar.className = 'bg-primary rounded-full h-1.5';
+    if (typeof showToast === 'function') {
+      showToast(isWrapped ? "Word wrap enabled" : "Word wrap disabled", 'info');
     }
   }
-
+  
   document.addEventListener('DOMContentLoaded', () => {
+    const outputText = document.getElementById('outputText');
+    const emptyStateOverlay = document.getElementById('emptyStateOverlay');
+    
+    if (outputText && emptyStateOverlay) {
+      // Hide empty state when there's content
+      outputText.addEventListener('input', function() {
+        emptyStateOverlay.style.opacity = this.value.trim() ? '0' : '1';
+      });
+      
+      // Also check on focus to ensure it's visible when needed
+      outputText.addEventListener('focus', function() {
+        emptyStateOverlay.style.opacity = this.value.trim() ? '0' : '1';
+      });
+      
+      // Initial check
+      if (outputText.value.trim()) {
+        emptyStateOverlay.style.opacity = '0';
+      }
+    }
+    
+    // Original token counting function can be used from scripts.html
     const originalTokenCountUpdate = window.updateTokenCount || function() {};
     window.updateTokenCount = function(text) {
       if (typeof originalTokenCountUpdate === 'function') {
         originalTokenCountUpdate(text);
       }
-      try {
-        if (typeof GPTTokenizer_cl100k_base !== 'undefined') {
-          const tokens = GPTTokenizer_cl100k_base.encode(text).length;
-          updateTokenDisplay(tokens);
-        }
-      } catch (err) {
-        console.error("Token count error:", err);
+      
+      // Hide empty state when there's content
+      if (emptyStateOverlay && text.trim()) {
+        emptyStateOverlay.style.opacity = '0';
       }
     };
   });

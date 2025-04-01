@@ -1,35 +1,132 @@
-<div class="divider divider-neutral mt-6">
+<div class="divider divider-neutral mt-6" data-intro="Save and load file selections to reuse them later">
   <i class="fa-solid fa-bookmark mr-2"></i> File Groupings
 </div>
 
-<div id="groupingControls" class="space-y-4 hidden">
-  <div class="card bg-base-200">
+<div id="groupingControls" class="hidden animate__animated animate__fadeIn">
+  <div class="card bg-base-200 border border-base-300">
     <div class="card-body p-4">
-      <h3 class="card-title text-base">
-        <i class="fa-solid fa-save mr-2"></i> Save Selection
-      </h3>
-      <div class="join w-full mt-2">
-        <input type="text" id="groupingName" class="input input-bordered join-item w-full" placeholder="Enter grouping name..." />
-        <button id="saveGrouping" class="btn btn-accent join-item">
-          <i class="fa-solid fa-save mr-2"></i> Save
-        </button>
+      <div class="flex items-center justify-between mb-2">
+        <h3 class="card-title text-base flex items-center">
+          <i class="fa-solid fa-layer-group mr-2"></i> Selection Groupings
+        </h3>
+        <div class="badge badge-neutral">Save & load file selections</div>
       </div>
-    </div>
-  </div>
-  
-  <div class="card bg-base-200">
-    <div class="card-body p-4">
-      <h3 class="card-title text-base">
-        <i class="fa-solid fa-list mr-2"></i> Load Saved Selection
-      </h3>
-      <div class="join w-full mt-2">
-        <select id="groupingSelect" class="select select-bordered join-item w-full">
-          <option value="">Select a saved grouping</option>
-        </select>
-        <button id="loadGrouping" class="btn btn-secondary join-item">
-          <i class="fa-solid fa-folder-open mr-2"></i> Load
-        </button>
+      
+      <div class="divider my-1"></div>
+      
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+        <!-- Save selection panel -->
+        <div class="bg-base-100 p-4 rounded-lg border border-base-300 shadow-sm">
+          <h4 class="font-medium flex items-center text-base mb-3">
+            <i class="fa-solid fa-save text-primary mr-2"></i> Save Selection
+          </h4>
+          
+          <div class="form-control">
+            <label class="label">
+              <span class="label-text">Group Name</span>
+            </label>
+            <div class="join w-full">
+              <input type="text" id="groupingName" class="input input-bordered join-item w-full" placeholder="Enter grouping name..." data-tooltip="Name for this file selection" />
+              <button id="saveGrouping" class="btn btn-primary join-item" data-tooltip="Save current file selection">
+                <i class="fa-solid fa-save"></i>
+                <span class="hidden sm:inline ml-1">Save</span>
+              </button>
+            </div>
+            <label class="label">
+              <span class="label-text-alt text-info">
+                <i class="fa-solid fa-info-circle mr-1"></i> Saves current file selection
+              </span>
+              <span class="label-text-alt">
+                <kbd class="kbd kbd-xs">Ctrl</kbd> + <kbd class="kbd kbd-xs">S</kbd>
+              </span>
+            </label>
+          </div>
+        </div>
+        
+        <!-- Load selection panel -->
+        <div class="bg-base-100 p-4 rounded-lg border border-base-300 shadow-sm">
+          <h4 class="font-medium flex items-center text-base mb-3">
+            <i class="fa-solid fa-folder-open text-secondary mr-2"></i> Load Selection
+          </h4>
+          
+          <div class="form-control">
+            <label class="label">
+              <span class="label-text">Saved Groups</span>
+            </label>
+            <div class="join w-full">
+              <select id="groupingSelect" class="select select-bordered join-item w-full" data-tooltip="Choose a saved group">
+                <option value="">Select a saved grouping</option>
+              </select>
+              <button id="loadGrouping" class="btn btn-secondary join-item" data-tooltip="Load selected group">
+                <i class="fa-solid fa-folder-open"></i>
+                <span class="hidden sm:inline ml-1">Load</span>
+              </button>
+            </div>
+            <label class="label">
+              <span class="label-text-alt text-info">
+                <i class="fa-solid fa-info-circle mr-1"></i> Loads saved file selection
+              </span>
+              <span class="label-text-alt">
+                <kbd class="kbd kbd-xs">Ctrl</kbd> + <kbd class="kbd kbd-xs">L</kbd>
+              </span>
+            </label>
+          </div>
+        </div>
+      </div>
+      
+      <div class="mt-4">
+        <div class="alert alert-info py-2 text-xs flex items-start">
+          <i class="fa-solid fa-lightbulb mt-0.5"></i>
+          <div>
+            <p class="font-medium">Pro Tip:</p>
+            <p>Create groupings for different use cases. For example, save selections for "Auth Flow", "Database Models", or "Frontend Components".</p>
+          </div>
+        </div>
       </div>
     </div>
   </div>
 </div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    // Add animation to the grouping controls
+    const saveBtn = document.getElementById('saveGrouping');
+    const loadBtn = document.getElementById('loadGrouping');
+    
+    // Enhance buttons with hover effects
+    if (saveBtn) {
+      saveBtn.addEventListener('mouseenter', () => {
+        saveBtn.classList.add('shadow-md');
+      });
+      
+      saveBtn.addEventListener('mouseleave', () => {
+        saveBtn.classList.remove('shadow-md');
+      });
+    }
+    
+    if (loadBtn) {
+      loadBtn.addEventListener('mouseenter', () => {
+        loadBtn.classList.add('shadow-md');
+      });
+      
+      loadBtn.addEventListener('mouseleave', () => {
+        loadBtn.classList.remove('shadow-md');
+      });
+    }
+    
+    // Track grouping select changes
+    const groupingSelect = document.getElementById('groupingSelect');
+    if (groupingSelect) {
+      groupingSelect.addEventListener('change', () => {
+        // Highlight the load button when a grouping is selected
+        if (loadBtn && groupingSelect.value) {
+          loadBtn.classList.add('btn-primary');
+          loadBtn.classList.remove('btn-secondary');
+        } else if (loadBtn) {
+          loadBtn.classList.add('btn-secondary');
+          loadBtn.classList.remove('btn-primary');
+        }
+      });
+    }
+  });
+</script>

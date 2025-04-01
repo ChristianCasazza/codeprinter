@@ -10,3 +10,4 @@ secrets.toml
 prompts.db
 codeprinter.db
 CLAUDE.md
+CHANGELOG.md

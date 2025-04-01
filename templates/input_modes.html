@@ -1,58 +1,177 @@
-<div id="githubMode" class="space-y-4">
-  <div class="form-control">
-    <label class="label">
-      <span class="label-text font-medium">GitHub URL</span>
-      <span class="label-text-alt text-info"><i class="fa-solid fa-circle-info"></i> Enter full repository URL</span>
-    </label>
-    <div class="join w-full">
-      <div class="join-item flex items-center px-3 bg-base-200 border border-r-0 border-base-300 rounded-l-lg">
-        <i class="fa-brands fa-github text-base-content"></i>
+<div class="card bg-base-200 border border-base-300 mb-6">
+  <div class="card-body p-4">
+    <div class="tabs tabs-boxed bg-base-300" data-intro="Choose your repository source">
+      <a class="tab tab-active" id="githubTabBtn">
+        <i class="fa-brands fa-github mr-2"></i> GitHub
+      </a>
+      <a class="tab" id="localTabBtn">
+        <i class="fa-solid fa-folder mr-2"></i> Local
+      </a>
+    </div>
+    
+    <div id="githubMode" class="mt-4 animate__animated animate__fadeIn">
+      <div class="form-control">
+        <label class="label">
+          <span class="label-text font-medium">GitHub Repository URL</span>
+          <span class="label-text-alt text-info">
+            <i class="fa-solid fa-circle-info"></i> Enter full repository URL
+          </span>
+        </label>
+        <div class="join w-full">
+          <div class="join-item flex items-center px-3 bg-base-300 border border-r-0 border-base-300 rounded-l-lg">
+            <i class="fa-brands fa-github text-base-content"></i>
+          </div>
+          <input type="text" id="repoUrl" class="input input-bordered join-item w-full" placeholder="https://github.com/username/repository" list="githubReposList" data-tooltip="Enter a GitHub repository URL" />
+          <button class="btn join-item btn-square" onclick="document.getElementById('repoUrl').value = ''" data-tooltip="Clear input">
+            <i class="fa-solid fa-times"></i>
+          </button>
+          <datalist id="githubReposList">
+            <!-- Options will be populated from saved paths -->
+          </datalist>
+        </div>
+        <div class="text-xs text-base-content opacity-70 mt-1">
+          <i class="fa-solid fa-history mr-1"></i> Recent repositories will appear in dropdown
+        </div>
       </div>
-      <input type="text" id="repoUrl" class="input input-bordered join-item w-full" placeholder="https://github.com/owner/repo..." list="githubReposList" />
-      <datalist id="githubReposList">
-        <!-- Options will be populated from saved paths -->
-      </datalist>
+      
+      {% if not has_github_token %}
+      <div class="form-control mt-3">
+        <label class="label">
+          <span class="label-text font-medium">GitHub Token (optional)</span>
+          <span class="label-text-alt text-info">
+            <i class="fa-solid fa-circle-info"></i> Required for private repos
+          </span>
+        </label>
+        <div class="join w-full">
+          <div class="join-item flex items-center px-3 bg-base-300 border border-r-0 border-base-300 rounded-l-lg">
+            <i class="fa-solid fa-key text-base-content"></i>
+          </div>
+          <input type="password" id="accessToken" class="input input-bordered join-item w-full" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" />
+          <button class="btn join-item" id="toggleTokenVisibility" data-tooltip="Toggle visibility">
+            <i class="fa-solid fa-eye"></i>
+          </button>
+        </div>
+        <label class="label">
+          <span class="label-text-alt">
+            <a href="https://github.com/settings/tokens" target="_blank" class="link link-hover text-info">
+              <i class="fa-solid fa-external-link-alt mr-1"></i>Generate a token
+            </a>
+          </span>
+          <span class="label-text-alt">
+            <a href="#" onclick="showTokenHelpModal()" class="link link-hover text-info">
+              <i class="fa-solid fa-question-circle mr-1"></i>Help
+            </a>
+          </span>
+        </label>
+      </div>
+      {% endif %}
+      
+      <button id="fetchGitHub" class="btn btn-primary w-full mt-4 gap-2" data-tooltip="Fetch repository files">
+        <i class="fa-solid fa-cloud-arrow-down mr-1"></i> Fetch GitHub Repository
+      </button>
+    </div>
+    
+    <div id="localMode" class="mt-4 animate__animated animate__fadeIn hidden">
+      <div class="form-control">
+        <label class="label">
+          <span class="label-text font-medium">Local Directory Path</span>
+          <span class="label-text-alt text-info">
+            <i class="fa-solid fa-circle-info"></i> Full directory path
+          </span>
+        </label>
+        <div class="join w-full">
+          <div class="join-item flex items-center px-3 bg-base-300 border border-r-0 border-base-300 rounded-l-lg">
+            <i class="fa-solid fa-folder text-base-content"></i>
+          </div>
+          <input type="text" id="localPath" class="input input-bordered join-item w-full" placeholder="/path/to/your/directory" list="localPathsList" data-tooltip="Enter a local directory path" />
+          <button class="btn join-item btn-square" onclick="document.getElementById('localPath').value = ''" data-tooltip="Clear input">
+            <i class="fa-solid fa-times"></i>
+          </button>
+          <datalist id="localPathsList">
+            <!-- Options will be populated from saved paths -->
+          </datalist>
+        </div>
+        <div class="text-xs text-base-content opacity-70 mt-1">
+          <i class="fa-solid fa-history mr-1"></i> Recent paths will appear in dropdown
+        </div>
+      </div>
+      
+      <button id="fetchLocal" class="btn btn-primary w-full mt-4 gap-2" data-tooltip="Scan local directory files">
+        <i class="fa-solid fa-folder-open mr-1"></i> Scan Local Directory
+      </button>
     </div>
   </div>
-  
-  {% if not has_github_token %}
-  <div class="form-control">
-    <label class="label">
-      <span class="label-text font-medium">GitHub Token (optional)</span>
-      <span class="label-text-alt text-info"><i class="fa-solid fa-circle-info"></i> Required for private repos</span>
-    </label>
-    <div class="join w-full">
-      <div class="join-item flex items-center px-3 bg-base-200 border border-r-0 border-base-300 rounded-l-lg">
-        <i class="fa-solid fa-key text-base-content"></i>
-      </div>
-      <input type="password" id="accessToken" class="input input-bordered join-item w-full" placeholder="token..." />
-    </div>
-  </div>
-  {% endif %}
-  
-  <button id="fetchGitHub" class="btn btn-primary w-full mt-6">
-    <i class="fa-solid fa-cloud-arrow-down mr-2"></i> Fetch GitHub Directory
-  </button>
 </div>
 
-<div id="localMode" class="space-y-4 hidden">
-  <div class="form-control">
-    <label class="label">
-      <span class="label-text font-medium">Local Path</span>
-      <span class="label-text-alt text-info"><i class="fa-solid fa-circle-info"></i> Full directory path</span>
-    </label>
-    <div class="join w-full">
-      <div class="join-item flex items-center px-3 bg-base-200 border border-r-0 border-base-300 rounded-l-lg">
-        <i class="fa-solid fa-folder text-base-content"></i>
+<!-- Help modal for GitHub tokens (shown when clicking help link) -->
+<dialog id="tokenHelpModal" class="modal">
+  <form method="dialog" class="modal-box">
+    <h3 class="font-bold text-lg mb-4 flex items-center">
+      <i class="fa-solid fa-key text-warning mr-2"></i> GitHub Token Help
+    </h3>
+    <div class="space-y-4">
+      <p>A GitHub Personal Access Token is required for:</p>
+      <ul class="list-disc list-inside space-y-2">
+        <li>Accessing private repositories</li>
+        <li>Increasing API rate limits</li>
+        <li>Accessing organizations' private repositories</li>
+      </ul>
+      
+      <div class="alert alert-info">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current shrink-0 w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+        <div>
+          <p class="font-bold">How to create a token</p>
+          <ol class="list-decimal list-inside mt-1">
+            <li>Go to <a href="https://github.com/settings/tokens" target="_blank" class="link">GitHub Token Settings</a></li>
+            <li>Click "Generate new token"</li>
+            <li>Select "repo" scope (full control of repositories)</li>
+            <li>Click "Generate token" at the bottom</li>
+            <li>Copy the generated token and paste it here</li>
+          </ol>
+        </div>
       </div>
-      <input type="text" id="localPath" class="input input-bordered join-item w-full" placeholder="/home/user/myrepo" list="localPathsList" />
-      <datalist id="localPathsList">
-        <!-- Options will be populated from saved paths -->
-      </datalist>
+      
+      <div class="alert alert-warning">
+        <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+        <div>
+          <p class="font-bold">Security Note</p>
+          <p>Your token is only stored temporarily in your browser session. For persistent storage, set it as the GITHUB_TOKEN environment variable on your system.</p>
+        </div>
+      </div>
     </div>
-  </div>
+    <div class="modal-action">
+      <button class="btn">Got it</button>
+    </div>
+  </form>
+  <form method="dialog" class="modal-backdrop">
+    <button>close</button>
+  </form>
+</dialog>
+
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    // Toggle GitHub token visibility
+    const toggleTokenVisibility = document.getElementById('toggleTokenVisibility');
+    const accessToken = document.getElementById('accessToken');
+    
+    if (toggleTokenVisibility && accessToken) {
+      toggleTokenVisibility.addEventListener('click', () => {
+        const type = accessToken.getAttribute('type') === 'password' ? 'text' : 'password';
+        accessToken.setAttribute('type', type);
+        
+        // Toggle icon
+        const icon = toggleTokenVisibility.querySelector('i');
+        if (icon) {
+          icon.className = type === 'password' ? 'fa-solid fa-eye' : 'fa-solid fa-eye-slash';
+        }
+      });
+    }
+  });
   
-  <button id="fetchLocal" class="btn btn-primary w-full mt-6">
-    <i class="fa-solid fa-folder-open mr-2"></i> Fetch Local Directory
-  </button>
-</div>
+  function showTokenHelpModal() {
+    const modal = document.getElementById('tokenHelpModal');
+    if (modal) {
+      modal.showModal();
+    }
+  }
+</script>

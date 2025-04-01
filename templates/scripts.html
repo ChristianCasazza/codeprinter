@@ -4,24 +4,28 @@
 
     // Constants
     // ALLOWED_EXTENSIONS remain the same
-    const ALLOWED_EXTENSIONS = ['.json', '.py', '.js', '.ts', '.sql', '.yml', '.svelte', '.md', '.tsx', '.yaml', '.tsx', '.css', '.html', '.sh', '.bat', '.txt', '.toml'];
+    const ALLOWED_EXTENSIONS = ['.json', '.py', '.js', '.ts', '.sql', '.yml', '.svelte', '.md', '.tsx', '.yaml', '.tsx', '.css', '.html', '.sh', '.bat', '.txt', '.php', '.toml'];
     
-    // Darker custom colors for all extensions, plus white text
+    // Extension colors with better contrast
     function getExtensionColors() {
       return {
-        'json': '#333333',
-        'py': '#333333',
-        'js': '#333333',
-        'ts': '#333333',
-        'sql': '#333333',
-        'yml': '#333333',
-        'yaml': '#333333',
-        'tsx': '#333333',
-        'css': '#333333',
-        'html': '#333333',
-        'txt': '#333333',
-        'toml': '#333333',
-        'md': '#333333'
+        'json': '#4A55A7',
+        'py': '#306998',
+        'js': '#F0DB4F',
+        'ts': '#007ACC',
+        'sql': '#E97B00',
+        'yml': '#6C3483',
+        'yaml': '#6C3483',
+        'tsx': '#3178C6',
+        'css': '#2965F1',
+        'html': '#E34F26',
+        'txt': '#5D6975',
+        'toml': '#8D6E63',
+        'md': '#6A737D',
+        'sh': '#4CAF50',
+        'bat': '#8BC34A',
+        'php': '#777BB3',
+        'svelte': '#FF3E00'
       };
     }
     
@@ -64,6 +68,13 @@
       }
 
       try {
+        // Show loading toast for longer operations
+        if (isGenerate) {
+          if (typeof showToast === 'function') {
+            showToast("Generating output, please wait...", "info");
+          }
+        }
+        
         const res = await fetch(endpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -73,11 +84,30 @@
         const result = await res.json();
         if (result.error) {
           console.error("API error:", result.error, { endpoint, data });
+          
+          // Enhanced error notification
+          if (typeof Swal !== 'undefined') {
+            Swal.fire({
+              title: 'Error',
+              text: result.error,
+              icon: 'error',
+              confirmButtonText: 'OK'
+            });
+          } else {
+            alert(result.error);
+          }
+          
           throw new Error(result.error);
         }
 
         if (progressContainer && celebration) {
           celebration.classList.remove('hidden');
+          
+          // Show confetti for successful generation
+          if (isGenerate && typeof showCelebration === 'function') {
+            showCelebration(2000);
+          }
+          
           setTimeout(() => {
             celebration.classList.add('hidden');
             progressContainer.classList.add('hidden');
@@ -89,6 +119,19 @@
       } catch (err) {
         console.error("Fetch error:", err.message, { endpoint, data });
         if (progressContainer) progressContainer.classList.add('hidden');
+        
+        // Enhanced error notification
+        if (typeof Swal !== 'undefined') {
+          Swal.fire({
+            title: 'Error',
+            text: err.message,
+            icon: 'error',
+            confirmButtonText: 'OK'
+          });
+        } else {
+          alert("Error: " + err.message);
+        }
+        
         throw err;
       }
     }
@@ -104,10 +147,21 @@
       if (generateTextButton && generateFullTextButton && outputText) {
         generateTextButton.classList.remove('hidden');
         generateFullTextButton.classList.remove('hidden');
-        groupingControls.classList.remove('hidden');
         
-        // Removed the 'generateHelp' display logic to remove the help text
-        // that was originally triggered by localStorage check.
+        // Show tool tips for action buttons
+        if (generateTextButton.getAttribute('data-tooltip') === null) {
+          generateTextButton.setAttribute('data-tooltip', 'Generate output only for selected files');
+          generateFullTextButton.setAttribute('data-tooltip', 'Generate output for all files but highlight selected ones');
+        }
+        
+        // Initialize tooltips if they exist
+        if (typeof tippy !== 'undefined' && typeof window.tippyInstances === 'undefined') {
+          setTimeout(() => {
+            if (typeof initTooltips === 'function') {
+              initTooltips();
+            }
+          }, 100);
+        }
         
         // Reset output area
         outputText.value = '';
@@ -197,14 +251,23 @@
         });
         
         updateExtensionBubbles();
+        
+        // Show toast with selection count
+        if (typeof showToast === 'function') {
+          showToast(`Loaded ${selection.length} file(s)`, 'success');
+        }
       } catch (err) {
         console.error("Error applying selection:", err);
+        
+        if (typeof showToast === 'function') {
+          showToast("Error applying selection", 'error');
+        }
       }
     }
 
     function displayDirectoryStructure(tree, repoId, lastSelection) {
       console.log("Displaying directory structure with tree:", tree);
-      // Store the repo ID for selection saving
+      // Store the repo ID 
       currentRepoId = repoId;
       
       const container = document.getElementById('directoryStructure');
@@ -258,8 +321,10 @@
           const details = document.createElement('details');
           details.open = true;
           const summary = document.createElement('summary');
-          summary.innerHTML = ' ' + name;
-          summary.className = 'font-bold';
+          summary.className = 'folder-node font-bold flex items-center';
+          
+          // Add folder icon and name
+          summary.innerHTML = `<span class="ml-1 code-folder">${name}</span>`;
           details.appendChild(summary);
           li.appendChild(details);
 
@@ -288,10 +353,18 @@
           checkbox.value = JSON.stringify(item);
           checkbox.dataset.path = item.path;
           li.appendChild(checkbox);
-          li.appendChild(document.createTextNode(name));
-
+          
+          // Get icon class based on extension
           const ext = name.split('.').pop().toLowerCase();
-          extensionMap.get(ext).forEach(file => {
+          const iconClass = `file-${ext}`;
+          
+          // Create a span with the file name and icon class
+          const fileNameSpan = document.createElement('span');
+          fileNameSpan.className = `code-file ${iconClass}`;
+          fileNameSpan.textContent = ` ${name}`;
+          li.appendChild(fileNameSpan);
+
+          extensionMap.get(ext)?.forEach(file => {
             if (file.path === item.path) {
               file.checkbox = checkbox;
             }
@@ -311,10 +384,10 @@
       // "All" bubble
       const allBubble = document.createElement('span');
       allBubble.className = 'ext-bubble selected';
-      allBubble.style.backgroundColor = '#333';  // Force dark background
-      allBubble.style.color = '#fff';            // White text
+      allBubble.style.backgroundColor = '#555';  
+      allBubble.style.color = '#fff';  
       allBubble.id = 'allBubble';
-      allBubble.textContent = `All (${filtered.length})`;
+      allBubble.innerHTML = `<i class="fa-solid fa-check-double mr-1"></i> All (${filtered.length})`;
       allBubble.addEventListener('click', () => {
         const isSelected = !allBubble.classList.contains('selected');
         allBubble.classList.toggle('selected', isSelected);
@@ -335,9 +408,20 @@
       extensionMap.forEach((files, ext) => {
         const bubble = document.createElement('span');
         bubble.className = 'ext-bubble selected';
-        bubble.style.backgroundColor = EXT_COLORS[ext] || '#333333'; // dark color
-        bubble.style.color = '#fff'; // ensure white text
-        bubble.textContent = `.${ext} (${files.length})`;
+        bubble.style.backgroundColor = EXT_COLORS[ext] || '#555';
+        bubble.style.color = '#fff';
+        
+        // Add file icon based on extension
+        const extension = ext.toLowerCase();
+        let icon = 'fa-file-code';
+        if (extension === 'md' || extension === 'txt') icon = 'fa-file-alt';
+        if (extension === 'json' || extension === 'yaml' || extension === 'yml') icon = 'fa-file-alt';
+        if (extension === 'html') icon = 'fa-file-code';
+        if (extension === 'css') icon = 'fa-file-code';
+        if (extension === 'js') icon = 'fa-file-code';
+        if (extension === 'py') icon = 'fa-file-code';
+        
+        bubble.innerHTML = `<i class="fa-solid ${icon} mr-1"></i> .${ext} (${files.length})`;
         bubble.dataset.ext = ext;
         bubble.addEventListener('click', () => {
           const isSelected = !bubble.classList.contains('selected');
@@ -373,9 +457,19 @@
 
       updateExtensionBubbles();
       
-      // Apply last selection if available
-      if (lastSelection) {
-        applySelection(lastSelection);
+      // Make sortable extension bubbles
+      if (typeof Sortable !== 'undefined') {
+        new Sortable(extContainer, {
+          animation: 150,
+          ghostClass: 'sorting-ghost',
+          onEnd: function(evt) {
+            // Optional: Save the new ordering to localStorage
+            const newOrder = Array.from(extContainer.children).map(el => 
+              el.id === 'allBubble' ? 'all' : el.dataset.ext
+            );
+            localStorage.setItem('extensionOrder', JSON.stringify(newOrder));
+          }
+        });
       }
     }
 
@@ -417,11 +511,6 @@
         const allSelected = Array.from(extContainer.querySelectorAll('.ext-bubble:not(#allBubble)'))
           .every(bubble => bubble.classList.contains('selected'));
         allBubble.classList.toggle('selected', allSelected);
-      }
-      
-      // Save current selection to database if we have a repo ID
-      if (currentRepoId) {
-        saveCurrentSelection();
       }
     }
     
@@ -473,7 +562,12 @@
         'md': 'markdown',
         'sql': 'sql',
         'yml': 'yaml',
-        'yaml': 'yaml'
+        'yaml': 'yaml',
+        'sh': 'bash',
+        'bat': 'batch',
+        'php': 'php',
+        'toml': 'toml',
+        'svelte': 'svelte'
       };
       return langMap[ext] || '';
     }
@@ -484,11 +578,45 @@
         if (typeof GPTTokenizer_cl100k_base !== 'undefined') {
           const tokens = GPTTokenizer_cl100k_base.encode(text).length;
           document.getElementById('tokenCount').textContent = `${tokens.toLocaleString()}`;
+          
+          // Update token progress visualization
+          updateTokenDisplay(tokens);
         }
       } catch (err) {
         console.error("Token count error or tokenizer not loaded:", err);
       }
     };
+    
+    // Token display with progress visualization
+    function updateTokenDisplay(count) {
+      const tokenCount = document.getElementById('tokenCount');
+      const tokenBar = document.getElementById('tokenProgressBar');
+      const tokenPercentage = document.getElementById('tokenPercentage');
+      const tokenContainer = document.querySelector('.token-usage-container');
+      
+      if (!tokenCount || !tokenBar || !tokenPercentage || !tokenContainer) return;
+      
+      tokenContainer.classList.remove('hidden');
+      tokenCount.textContent = `${count.toLocaleString()} tokens`;
+      
+      const maxTokens = 4000;
+      const percentage = Math.min(100, (count / maxTokens) * 100);
+      
+      tokenBar.style.width = `${percentage}%`;
+      tokenPercentage.textContent = `${Math.round(percentage)}%`;
+      
+      if (percentage > 90) {
+        tokenBar.className = 'bg-error rounded-full h-1.5';
+        // Show warning if over 90%
+        if (typeof showToast === 'function') {
+          showToast(`Warning: Token count is at ${Math.round(percentage)}% of typical LLM limit`, 'warning');
+        }
+      } else if (percentage > 70) {
+        tokenBar.className = 'bg-warning rounded-full h-1.5';
+      } else {
+        tokenBar.className = 'bg-primary rounded-full h-1.5';
+      }
+    }
 
     function formatFullRepoContents(contents, selected) {
       contents.sort((a, b) => a.path.localeCompare(b.path));
@@ -521,6 +649,11 @@
       a.download = filename;
       a.click();
       URL.revokeObjectURL(url);
+      
+      // Show toast notification
+      if (typeof showToast === 'function') {
+        showToast(`Downloaded ${filename}`, 'success');
+      }
     }
 
     let groupings = [];
@@ -538,7 +671,11 @@
           select.appendChild(option);
         });
       } catch (err) {
-        alert("Error loading groupings: " + err.message);
+        if (typeof showToast === 'function') {
+          showToast("Error loading groupings: " + err.message, 'error');
+        } else {
+          alert("Error loading groupings: " + err.message);
+        }
       }
     }
 
@@ -568,7 +705,11 @@
       fetchGitHubBtn.addEventListener('click', async () => {
         const repoUrl = document.getElementById('repoUrl')?.value.trim();
         if (!repoUrl) {
-          alert("Enter a GitHub URL.");
+          if (typeof showToast === 'function') {
+            showToast("Please enter a GitHub URL", 'error');
+          } else {
+            alert("Enter a GitHub URL.");
+          }
           return;
         }
         isGithub = true;
@@ -576,14 +717,27 @@
         try {
           const data = { repoUrl };
           {% if not has_github_token %}data.accessToken = document.getElementById('accessToken')?.value.trim();{% endif %}
+          
+          if (typeof showToast === 'function') {
+            showToast("Fetching repository data...", 'info');
+          }
+          
           const result = await fetchData('/api/github-tree', data);
           currentTree = result.tree;
           currentRepoId = result.repoId;
-          displayDirectoryStructure(currentTree, currentRepoId, result.lastSelection);
+          displayDirectoryStructure(currentTree, currentRepoId, null);
           showActionButtons();
-          await loadGroupings();
+          
+          // Show success toast
+          if (typeof showToast === 'function') {
+            showToast(`Fetched ${result.tree.length} files from GitHub repository`, 'success');
+          }
         } catch (err) {
-          alert("Error: " + err.message);
+          if (typeof showToast === 'function') {
+            showToast("Error: " + err.message, 'error');
+          } else {
+            alert("Error: " + err.message);
+          }
         }
       });
     }
@@ -593,20 +747,36 @@
       fetchLocalBtn.addEventListener('click', async () => {
         const localPath = document.getElementById('localPath')?.value.trim();
         if (!localPath) {
-          alert("Enter a local path.");
+          if (typeof showToast === 'function') {
+            showToast("Please enter a local file path", 'error');
+          } else {
+            alert("Enter a local path.");
+          }
           return;
         }
         isGithub = false;
         basePath = localPath;
         try {
+          if (typeof showToast === 'function') {
+            showToast("Scanning local directory...", 'info');
+          }
+          
           const result = await fetchData('/api/local-tree', { localPath });
           currentTree = result.tree;
           currentRepoId = result.repoId;
-          displayDirectoryStructure(currentTree, currentRepoId, result.lastSelection);
+          displayDirectoryStructure(currentTree, currentRepoId, null);
           showActionButtons();
-          await loadGroupings();
+          
+          // Show success toast
+          if (typeof showToast === 'function') {
+            showToast(`Scanned ${result.tree.length} files from local directory`, 'success');
+          }
         } catch (err) {
-          alert("Error: " + err.message);
+          if (typeof showToast === 'function') {
+            showToast("Error: " + err.message, 'error');
+          } else {
+            alert("Error: " + err.message);
+          }
         }
       });
     }
@@ -614,32 +784,110 @@
     // Generate text from selected files
     document.getElementById('generateTextButton').addEventListener('click', async () => {
       const selected = getSelectedFiles();
-      if (!selected.length) return alert("No files selected.");
+      if (!selected.length) {
+        if (typeof showToast === 'function') {
+          showToast("Please select at least one file", 'warning');
+        } else {
+          alert("No files selected.");
+        }
+        return;
+      }
+      
       const data = { repoIdentifier: basePath, filePaths: selected.map(f => f.path) };
       {% if not has_github_token %} if (isGithub) data.accessToken = document.getElementById('accessToken')?.value.trim(); {% endif %}
+      
       try {
+        if (typeof showToast === 'function') {
+          showToast(`Generating output for ${selected.length} selected files...`, 'info');
+        }
+        
         const contents = await fetchData('/api/file-contents', data, true);
-        document.getElementById('outputText').value = formatRepoContents(contents, selected);
+        const outputText = document.getElementById('outputText');
+        outputText.value = formatRepoContents(contents, selected);
         document.getElementById('copyButton').classList.remove('hidden');
         document.getElementById('downloadButton').classList.remove('hidden');
+        
+        // Hide the empty state overlay
+        const emptyStateOverlay = document.getElementById('emptyStateOverlay');
+        if (emptyStateOverlay) {
+          emptyStateOverlay.style.opacity = '0';
+        }
+        
+        // Show success message and celebrate
+        if (typeof showToast === 'function') {
+          showToast("Output generated successfully!", 'success');
+        }
+        
+        if (typeof showCelebration === 'function') {
+          showCelebration(1500);
+        }
       } catch (err) {
-        alert("Error: " + err.message);
+        if (typeof showToast === 'function') {
+          showToast("Error: " + err.message, 'error');
+        } else {
+          alert("Error: " + err.message);
+        }
       }
     });
 
     // Generate text for *all* files, marking selected separately
     document.getElementById('generateFullTextButton').addEventListener('click', async () => {
       const selected = getSelectedFiles();
-      const allFilePaths = currentTree.map(f => f.path);
+      if (!selected.length) {
+        if (typeof showToast === 'function') {
+          showToast("Please select at least one file to highlight", 'warning');
+        }
+      }
+      
+      const allFilePaths = currentTree.filter(f => ALLOWED_EXTENSIONS.some(ext => f.path.toLowerCase().endsWith(ext))).map(f => f.path);
       const data = { repoIdentifier: basePath, filePaths: allFilePaths };
       {% if not has_github_token %} if (isGithub) data.accessToken = document.getElementById('accessToken')?.value.trim(); {% endif %}
+      
       try {
-        const contents = await fetchData('/api/file-contents', data, true);
-        document.getElementById('outputText').value = formatFullRepoContents(contents, selected);
+        if (typeof showToast === 'function') {
+          showToast(`Generating full project output (${allFilePaths.length} files)...`, 'info');
+        }
+        
+        // Use a try-catch with a timeout to handle potential server timeouts
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error("Request timed out. The project might be too large to process at once.")), 60000);
+        });
+        
+        const contents = await Promise.race([
+          fetchData('/api/file-contents', data, true),
+          timeoutPromise
+        ]);
+        
+        const outputText = document.getElementById('outputText');
+        outputText.value = formatFullRepoContents(contents, selected);
         document.getElementById('copyButton').classList.remove('hidden');
         document.getElementById('downloadButton').classList.remove('hidden');
+        
+        // Hide the empty state overlay
+        const emptyStateOverlay = document.getElementById('emptyStateOverlay');
+        if (emptyStateOverlay) {
+          emptyStateOverlay.style.opacity = '0';
+        }
+        
+        // Show success message
+        if (typeof showToast === 'function') {
+          showToast("Full project output generated!", 'success');
+        }
+        
+        if (typeof showCelebration === 'function') {
+          showCelebration(1500);
+        }
       } catch (err) {
-        alert("Error: " + err.message);
+        if (typeof showToast === 'function') {
+          showToast("Error: " + err.message, 'error');
+        } else {
+          alert("Error: " + err.message);
+        }
+        
+        // Clear any existing progress indicators
+        if (progressContainerBottom) {
+          progressContainerBottom.classList.add('hidden');
+        }
       }
     });
 
@@ -647,47 +895,101 @@
     document.getElementById('copyButton').addEventListener('click', () => {
       const text = document.getElementById('outputText').value;
       navigator.clipboard.writeText(text).then(() => {
-        const toast = document.createElement('div');
-        toast.className = 'toast toast-end';
-        toast.innerHTML = `
-          <div class="alert alert-success">
-            <i class="fa-solid fa-check-circle"></i>
-            <span>Copied to clipboard!</span>
-          </div>
-        `;
-        document.body.appendChild(toast);
-        setTimeout(() => {
-          toast.remove();
-        }, 2000);
+        if (typeof showToast === 'function') {
+          showToast("Copied to clipboard!", 'success');
+        } else {
+          const toast = document.createElement('div');
+          toast.className = 'toast toast-end';
+          toast.innerHTML = `
+            <div class="alert alert-success">
+              <i class="fa-solid fa-check-circle"></i>
+              <span>Copied to clipboard!</span>
+            </div>
+          `;
+          document.body.appendChild(toast);
+          setTimeout(() => {
+            toast.remove();
+          }, 2000);
+        }
       });
     });
 
     // Download
     document.getElementById('downloadButton').addEventListener('click', () => {
       const text = document.getElementById('outputText').value;
-      if (!text.trim()) return alert("No content to download.");
-      downloadBlob(new Blob([text], { type: 'text/plain' }), 'prompt.txt');
+      if (!text.trim()) {
+        if (typeof showToast === 'function') {
+          showToast("No content to download", 'warning');
+        } else {
+          alert("No content to download.");
+        }
+        return;
+      }
+      
+      // Get current timestamp for filename
+      const now = new Date();
+      const timestamp = `${now.getFullYear()}-${(now.getMonth()+1).toString().padStart(2, '0')}-${now.getDate().toString().padStart(2, '0')}_${now.getHours().toString().padStart(2, '0')}-${now.getMinutes().toString().padStart(2, '0')}`;
+      
+      downloadBlob(new Blob([text], { type: 'text/plain' }), `code_export_${timestamp}.md`);
     });
 
     // Groupings
     document.getElementById('saveGrouping').addEventListener('click', async () => {
       const groupingName = document.getElementById('groupingName').value.trim();
       const selected = getSelectedFiles();
-      if (!groupingName) return alert("Enter a grouping name.");
-      if (!selected.length) return alert("No files selected to save in grouping.");
+      
+      if (!groupingName) {
+        if (typeof showToast === 'function') {
+          showToast("Please enter a grouping name", 'warning');
+        } else {
+          alert("Enter a grouping name.");
+        }
+        return;
+      }
+      
+      if (!selected.length) {
+        if (typeof showToast === 'function') {
+          showToast("Please select files to save in this grouping", 'warning');
+        } else {
+          alert("No files selected to save in grouping.");
+        }
+        return;
+      }
+      
       const data = { repoIdentifier: basePath, groupingName, filePaths: selected.map(f => f.path) };
+      
       try {
         const result = await fetchData('/api/save-grouping', data);
-        alert(result.message);
+        
+        if (typeof showToast === 'function') {
+          showToast(`Grouping "${groupingName}" saved with ${selected.length} files`, 'success');
+        } else {
+          alert(result.message);
+        }
+        
         await loadGroupings();
+        
+        // Clear the grouping name input after saving
+        document.getElementById('groupingName').value = '';
       } catch (err) {
-        alert("Error saving grouping: " + err.message);
+        if (typeof showToast === 'function') {
+          showToast("Error saving grouping: " + err.message, 'error');
+        } else {
+          alert("Error saving grouping: " + err.message);
+        }
       }
     });
 
     document.getElementById('loadGrouping').addEventListener('click', () => {
       const selectedName = document.getElementById('groupingSelect').value;
-      if (!selectedName) return alert("Please select a grouping to load.");
+      if (!selectedName) {
+        if (typeof showToast === 'function') {
+          showToast("Please select a grouping to load", 'warning');
+        } else {
+          alert("Please select a grouping to load.");
+        }
+        return;
+      }
 
       const allCheckboxes = document.querySelectorAll('#directoryStructure input[type="checkbox"]');
       allCheckboxes.forEach(cb => {
@@ -705,10 +1007,44 @@
           }
         });
         updateExtensionBubbles();
+        
+        if (typeof showToast === 'function') {
+          showToast(`Loaded grouping "${selectedName}" with ${grouping.files.length} files`, 'success');
+        }
       } else {
-        alert("No files found in this grouping or grouping not loaded correctly.");
+        if (typeof showToast === 'function') {
+          showToast("No files found in this grouping", 'error');
+        } else {
+          alert("No files found in this grouping or grouping not loaded correctly.");
+        }
       }
     });
+    
+    // Attach data-tooltip attributes to various elements for tooltips
+    function setupTooltips() {
+      const tooltipData = [
+        { selector: '#expandAllBtn', tooltip: 'Expand all folders' },
+        { selector: '#collapseAllBtn', tooltip: 'Collapse all folders' },
+        { selector: '#clearSearchBtn', tooltip: 'Clear search' },
+        { selector: '#treeSearchInput', tooltip: 'Search files by name' },
+        { selector: '#saveGrouping', tooltip: 'Save current selection as a named grouping' },
+        { selector: '#loadGrouping', tooltip: 'Load a saved selection grouping' },
+        { selector: '#expandButton', tooltip: 'Toggle fullscreen view' },
+        { selector: '#copyButton', tooltip: 'Copy output to clipboard' },
+        { selector: '#downloadButton', tooltip: 'Download output as file' },
+        { selector: '#allBubble', tooltip: 'Select or deselect all file types' }
+      ];
+      
+      tooltipData.forEach(item => {
+        const element = document.querySelector(item.selector);
+        if (element && !element.hasAttribute('data-tooltip')) {
+          element.setAttribute('data-tooltip', item.tooltip);
+        }
+      });
+    }
+    
+    // Initialize tooltips when DOM is loaded
+    setTimeout(setupTooltips, 500);
   });
 </script>
 <script src="https://unpkg.com/gpt-tokenizer"></script>

@@ -1,12 +1,90 @@
-<div class="divider divider-neutral mt-6">
-  <i class="fa-solid fa-code mr-2"></i> Generate Content
+<div class="divider divider-neutral mt-6" id="actionButtons" data-intro="Generate formatted output for your selected files">
+  <i class="fa-solid fa-code mr-2"></i> Generate Output
 </div>
 
-<div class="flex gap-4 mt-4">
-  <button id="generateTextButton" class="btn btn-success flex-1 hidden btn-lg">
-    <i class="fa-solid fa-file-code mr-2"></i> Selected Files
-  </button>
-  <button id="generateFullTextButton" class="btn btn-info flex-1 hidden btn-lg">
-    <i class="fa-solid fa-project-diagram mr-2"></i> Full Project
-  </button>
+<div class="card bg-base-200 border border-base-300 mt-4">
+  <div class="card-body p-4">
+    <h3 class="card-title text-base flex items-center mb-2">
+      <i class="fa-solid fa-gears mr-2"></i> Generate Options
+    </h3>
+    
+    <div class="divider my-0 mb-4"></div>
+    
+    <div class="flex flex-col md:flex-row gap-4">
+      <button id="generateTextButton" class="btn btn-primary hidden animate__animated animate__fadeIn btn-lg gap-2 flex-1" data-tooltip="Generate output for only the selected files">
+        <i class="fa-solid fa-file-code mr-1"></i> Selected Files Only
+        <span class="badge badge-sm">Ctrl+G</span>
+      </button>
+      
+      <button id="generateFullTextButton" class="btn btn-secondary hidden animate__animated animate__fadeIn btn-lg gap-2 flex-1" data-tooltip="Generate output for the entire project with selected files highlighted">
+        <i class="fa-solid fa-project-diagram mr-1"></i> Full Project
+        <span class="badge badge-sm">Ctrl+Shift+G</span>
+      </button>
+    </div>
+    
+    <div class="mt-4 text-sm text-base-content opacity-70 hidden animate__animated animate__fadeIn" id="generateHelp">
+      <div class="alert alert-info shadow-sm text-sm">
+        <i class="fa-solid fa-info-circle"></i>
+        <div>
+          <span class="font-medium">Quick Guide:</span>
+          <ul class="list-disc list-inside mt-1 space-y-1">
+            <li><strong>Selected Files:</strong> Only includes checked files in the output</li>
+            <li><strong>Full Project:</strong> Includes all files, with your selections highlighted</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const generateTextButton = document.getElementById('generateTextButton');
+    const generateFullTextButton = document.getElementById('generateFullTextButton');
+    const generateHelp = document.getElementById('generateHelp');
+    
+    // Add hover effects
+    if (generateTextButton) {
+      generateTextButton.addEventListener('mouseover', () => {
+        generateTextButton.classList.add('shadow-lg');
+      });
+      
+      generateTextButton.addEventListener('mouseout', () => {
+        generateTextButton.classList.remove('shadow-lg');
+      });
+    }
+    
+    if (generateFullTextButton) {
+      generateFullTextButton.addEventListener('mouseover', () => {
+        generateFullTextButton.classList.add('shadow-lg');
+      });
+      
+      generateFullTextButton.addEventListener('mouseout', () => {
+        generateFullTextButton.classList.remove('shadow-lg');
+      });
+    }
+    
+    // Show help text for first-time users
+    const hasUsedGenerator = localStorage.getItem('hasUsedGenerator');
+    if (!hasUsedGenerator && generateHelp) {
+      generateHelp.classList.remove('hidden');
+      
+      // Hide help text after user generates content
+      const hideHelp = () => {
+        generateHelp.classList.add('animate__fadeOut');
+        setTimeout(() => {
+          generateHelp.classList.add('hidden');
+          localStorage.setItem('hasUsedGenerator', 'true');
+        }, 500);
+      };
+      
+      if (generateTextButton) {
+        generateTextButton.addEventListener('click', hideHelp, { once: true });
+      }
+      
+      if (generateFullTextButton) {
+        generateFullTextButton.addEventListener('click', hideHelp, { once: true });
+      }
+    }
+  });
+</script>

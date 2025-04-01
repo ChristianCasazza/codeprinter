@@ -1,31 +1,77 @@
-<div class="card bg-base-200 mt-6 border border-base-300">
+<div class="card bg-base-200 border border-base-300 mt-6" data-intro="Browse and select files from your repository here">
   <div class="card-body p-4">
     <div class="flex justify-between items-center">
       <h3 class="card-title text-base">
-        <i class="fa-solid fa-folder-tree mr-2"></i>Directory Structure
+        <i class="fa-solid fa-folder-tree mr-2"></i> Directory Structure
       </h3>
       <div class="badge badge-neutral">Select files to include</div>
     </div>
     
-    <div class="flex mt-4 mb-2 items-center gap-2">
+    <div class="flex flex-col sm:flex-row mt-4 mb-2 items-center gap-2">
       <div class="join flex-1">
-        <input id="treeSearchInput" type="text" placeholder="Search files..." class="input input-sm input-bordered join-item w-full" />
-        <button id="clearSearchBtn" class="btn btn-sm join-item" onclick="clearTreeSearch()">
+        <input id="treeSearchInput" type="text" placeholder="Search files..." class="input input-sm input-bordered join-item w-full" data-tooltip="Type to search for files" />
+        <button id="clearSearchBtn" class="btn btn-sm join-item" onclick="clearTreeSearch()" data-tooltip="Clear search">
           <i class="fa-solid fa-times"></i>
         </button>
       </div>
-      <button id="expandAllBtn" class="btn btn-sm btn-outline gap-1" onclick="toggleAllFolders(true)">
-        <i class="fa-solid fa-angle-double-down"></i> Expand
+      <div class="flex gap-2">
+        <button id="expandAllBtn" class="btn btn-sm btn-outline gap-1" onclick="toggleAllFolders(true)" data-tooltip="Expand all folders">
+          <i class="fa-solid fa-angle-double-down"></i> Expand
+        </button>
+        <button id="collapseAllBtn" class="btn btn-sm btn-outline gap-1" onclick="toggleAllFolders(false)" data-tooltip="Collapse all folders">
+          <i class="fa-solid fa-angle-double-up"></i> Collapse
+        </button>
+      </div>
+    </div>
+    
+    <div class="flex gap-2 mt-2">
+      <button id="selectAllBtn" class="btn btn-sm btn-outline btn-success gap-1" onclick="selectAllFiles(true)" data-tooltip="Select all files">
+        <i class="fa-solid fa-check-double"></i> Select All
       </button>
-      <button id="collapseAllBtn" class="btn btn-sm btn-outline gap-1" onclick="toggleAllFolders(false)">
-        <i class="fa-solid fa-angle-double-up"></i> Collapse
+      <button id="selectRootBtn" class="btn btn-sm btn-outline btn-info gap-1" onclick="selectRootFiles()" data-tooltip="Select only root files">
+        <i class="fa-solid fa-check"></i> Select Root Files
+      </button>
+      <button id="deselectAllBtn" class="btn btn-sm btn-outline btn-error gap-1" onclick="selectAllFiles(false)" data-tooltip="Deselect all files">
+        <i class="fa-solid fa-times"></i> Deselect All
       </button>
     </div>
     
     <div class="divider my-0"></div>
     
+    <!-- Directory tree with search highlights -->
     <div id="directoryStructure" class="p-3 bg-base-200 rounded-lg shadow-inner code-explorer" style="resize: vertical; overflow-y: auto; position: relative; min-height: 300px; max-height: 80vh; height: 500px;">
       <div class="resize-handle" id="resizeHandle"></div>
+      
+      <!-- Empty state illustration -->
+      <div id="emptyTree" class="h-full flex flex-col items-center justify-center text-base-content text-opacity-40">
+        <i class="fa-solid fa-folder-open text-6xl mb-4"></i>
+        <p class="text-center max-w-xs">
+          Enter a GitHub URL or local path above and click "Fetch" to load files
+        </p>
+      </div>
+    </div>
+    
+    <!-- File info panel - shows details about selected file -->
+    <div id="fileInfoPanel" class="mt-4 p-3 bg-base-100 rounded-lg border border-base-300 hidden animate__animated animate__fadeIn">
+      <div class="flex justify-between items-center">
+        <h4 class="font-medium text-sm flex items-center">
+          <i class="fa-solid fa-info-circle mr-2 text-info"></i> File Information
+        </h4>
+        <button onclick="document.getElementById('fileInfoPanel').classList.add('hidden')" class="btn btn-xs btn-ghost">
+          <i class="fa-solid fa-times"></i>
+        </button>
+      </div>
+      <div class="divider my-1"></div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
+        <div>
+          <span class="font-medium">Path:</span>
+          <span id="fileInfoPath" class="ml-1 text-info"></span>
+        </div>
+        <div>
+          <span class="font-medium">Type:</span>
+          <span id="fileInfoType" class="ml-1"></span>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -118,7 +164,12 @@
     transform: rotate(90deg);
   }
   
-  /* File type icons */
+  /* Enhanced folder and file icons */
+  summary.folder-node {
+    font-weight: 600;
+    color: var(--primary);
+  }
+  
   summary.folder-node::before {
     content: "📁";
     opacity: 1;
@@ -176,6 +227,22 @@
   .resize-handle:hover::after {
     background-color: var(--fallback-bc,oklch(var(--bc)/0.5));
   }
+  
+  /* Empty state animation */
+  #emptyTree i {
+    animation: float 6s ease-in-out infinite;
+  }
+  
+  @keyframes float {
+    0% { transform: translateY(0px); }
+    50% { transform: translateY(-10px); }
+    100% { transform: translateY(0px); }
+  }
+  
+  /* File info panel enhancements */
+  #fileInfoPanel {
+    transition: all 0.3s ease;
+  }
 </style>
 
 <script>
@@ -207,12 +274,104 @@
       
       resizeHandle.addEventListener('mousedown', startResize);
     }
+    
+    // Set up select all/deselect all functionality
+    window.selectAllFiles = function(select) {
+      const allCheckboxes = document.querySelectorAll('#directoryStructure input[type="checkbox"]');
+      allCheckboxes.forEach(cb => {
+        cb.checked = select;
+        cb.indeterminate = false;
+      });
+      
+      // Update extension bubbles if function exists
+      if (typeof updateExtensionBubbles === 'function') {
+        updateExtensionBubbles();
+      }
+      
+      // Show success message
+      if (typeof showToast === 'function') {
+        showToast(select ? "Selected all files" : "Deselected all files", 'info');
+      }
+    };
+    
+    // Set up select root files functionality
+    window.selectRootFiles = function() {
+      // First deselect all files
+      selectAllFiles(false);
+      
+      // Then select only root-level files (not in folders)
+      const rootCheckboxes = Array.from(document.querySelectorAll('#directoryStructure > ul > li > input[type="checkbox"]'))
+        .filter(cb => !cb.classList.contains('folder-checkbox'));
+      
+      rootCheckboxes.forEach(cb => {
+        cb.checked = true;
+      });
+      
+      // Update extension bubbles if function exists
+      if (typeof updateExtensionBubbles === 'function') {
+        updateExtensionBubbles();
+      }
+      
+      // Show success message
+      if (typeof showToast === 'function') {
+        showToast(`Selected ${rootCheckboxes.length} root-level files`, 'info');
+      }
+    };
+    
+    // Add file info display when clicking on file names
+    directoryStructure.addEventListener('click', (e) => {
+      // Check if clicked on a file name (not checkbox)
+      const fileSpan = e.target.closest('.code-file');
+      if (fileSpan) {
+        // Find the associated checkbox to get file data
+        const checkbox = fileSpan.parentElement.querySelector('input[type="checkbox"]');
+        if (checkbox && checkbox.value) {
+          try {
+            const fileData = JSON.parse(checkbox.value);
+            
+            // Update and show file info panel
+            document.getElementById('fileInfoPath').textContent = fileData.path;
+            
+            // Get file extension
+            const ext = fileData.path.split('.').pop().toLowerCase();
+            let typeName = 'Unknown';
+            switch (ext) {
+              case 'js': typeName = 'JavaScript'; break;
+              case 'ts': typeName = 'TypeScript'; break;
+              case 'py': typeName = 'Python'; break;
+              case 'html': typeName = 'HTML'; break;
+              case 'css': typeName = 'CSS'; break;
+              case 'md': typeName = 'Markdown'; break;
+              case 'json': typeName = 'JSON'; break;
+              case 'yml':
+              case 'yaml': typeName = 'YAML'; break;
+              case 'sql': typeName = 'SQL'; break;
+              default: typeName = ext.toUpperCase();
+            }
+            
+            document.getElementById('fileInfoType').textContent = typeName;
+            document.getElementById('fileInfoPanel').classList.remove('hidden');
+            
+            // Animate the panel
+            document.getElementById('fileInfoPanel').classList.add('animate__fadeIn');
+          } catch (e) {
+            console.error("Error parsing file data:", e);
+          }
+        }
+      }
+    });
   });
+  
   function clearTreeSearch() {
     const searchInput = document.getElementById('treeSearchInput');
     if (searchInput) {
       searchInput.value = '';
       searchFiles('');
+      
+      // Show toast notification if available
+      if (typeof showToast === 'function') {
+        showToast("Search cleared", 'info');
+      }
     }
   }
   
@@ -270,6 +429,16 @@
         folderLi.style.display = '';
       }
     });
+    
+    // Show toast with search results if available
+    if (typeof showToast === 'function') {
+      const matchCount = document.querySelectorAll('#directoryStructure li.highlight').length;
+      if (matchCount > 0) {
+        showToast(`Found ${matchCount} file${matchCount === 1 ? '' : 's'} matching "${query}"`, 'success');
+      } else {
+        showToast(`No files found matching "${query}"`, 'warning');
+      }
+    }
   }
   
   function toggleAllFolders(open) {
@@ -277,6 +446,11 @@
     allFolders.forEach(folder => {
       folder.open = open;
     });
+    
+    // Show toast notification if available
+    if (typeof showToast === 'function') {
+      showToast(open ? "Expanded all folders" : "Collapsed all folders", 'info');
+    }
   }
   
   document.addEventListener('DOMContentLoaded', () => {
@@ -285,6 +459,45 @@
       searchInput.addEventListener('input', (e) => {
         searchFiles(e.target.value);
       });
+      
+      // Focus search box with keyboard shortcut
+      document.addEventListener('keydown', (e) => {
+        // Only handle when not in input fields
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+        
+        // Ctrl + F: Focus search
+        if (e.ctrlKey && e.key === 'f') {
+          e.preventDefault();
+          searchInput.focus();
+        }
+      });
+    }
+    
+    // Handle folder expand/collapse keyboard shortcuts
+    document.addEventListener('keydown', (e) => {
+      // Only handle when not in input fields
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+      
+      // Ctrl + E: Expand all
+      if (e.ctrlKey && e.key === 'e') {
+        e.preventDefault();
+        toggleAllFolders(true);
+      }
+      
+      // Ctrl + C: Collapse all
+      if (e.ctrlKey && e.key === 'c') {
+        e.preventDefault();
+        toggleAllFolders(false);
+      }
+    });
+    
+    // Show the empty state if no content
+    const directoryStructure = document.getElementById('directoryStructure');
+    if (directoryStructure && directoryStructure.childElementCount <= 1) { // Only resize handle
+      const emptyState = document.getElementById('emptyTree');
+      if (emptyState) {
+        emptyState.style.display = 'flex';
+      }
     }
   });
 </script>

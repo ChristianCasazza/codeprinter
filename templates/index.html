@@ -8,6 +8,11 @@
   <script async src="https://unpkg.com/gpt-tokenizer"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/animate.css@4.1.1/animate.min.css" />
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="https://cdn.jsdelivr.net/npm/confetti-js@0.0.18/dist/index.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tippy.js@6/dist/tippy-bundle.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+  <!-- Tutorial removed -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
     /* Animated Background for dark themes */
@@ -65,7 +70,7 @@
     .floating-card:hover {
       transform: translateY(-5px);
       box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 
-                  0 8px 10px -6px rgba(0, 0, 0, 0.1);
+                0 8px 10px -6px rgba(0, 0, 0, 0.1);
     }
     
     /* Logo animation */
@@ -110,9 +115,190 @@
     .theme-btn:hover::after {
       left: 100%;
     }
+    
+    /* Extension bubbles enhancements */
+    .ext-bubble {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0.5rem 0.75rem;
+      border-radius: 1rem;
+      margin: 0.25rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      opacity: 0.7;
+      transform: scale(0.95);
+    }
+    
+    .ext-bubble.selected {
+      opacity: 1;
+      transform: scale(1);
+      box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    }
+    
+    .ext-bubble:hover {
+      transform: scale(1.05);
+    }
+    
+    /* Improved toggle button styles */
+    .toggle-btn {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      background-color: var(--base-200);
+      color: var(--base-content);
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    
+    .toggle-btn:hover {
+      background-color: var(--base-300);
+    }
+    
+    /* Mobile optimizations */
+    @media (max-width: 768px) {
+      .mobile-stack {
+        flex-direction: column;
+      }
+      
+      .mobile-full {
+        width: 100%;
+      }
+      
+      .mobile-mb-4 {
+        margin-bottom: 1rem;
+      }
+    }
+    
+    /* Confetti container */
+    #confetti-canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 9999;
+    }
+    
+    /* Toast notifications */
+    .toast-container {
+      position: fixed;
+      top: 1.5rem;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      max-width: 32rem;
+      width: 90%;
+    }
+    
+    .toast {
+      padding: 1rem;
+      border-radius: 0.5rem;
+      background-color: var(--base-100);
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+      animation: slideIn 0.3s ease forwards;
+      border: 1px solid var(--primary);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      text-align: center;
+    }
+    
+    .toast-success { border-color: var(--success); background-color: color-mix(in srgb, var(--success) 10%, var(--base-100)); }
+    .toast-error { border-color: var(--error); background-color: color-mix(in srgb, var(--error) 10%, var(--base-100)); }
+    .toast-info { border-color: var(--info); background-color: color-mix(in srgb, var(--info) 10%, var(--base-100)); }
+    .toast-warning { border-color: var(--warning); background-color: color-mix(in srgb, var(--warning) 10%, var(--base-100)); }
+    
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(-100%); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    @keyframes slideOut {
+      from { opacity: 1; transform: translateY(0); }
+      to { opacity: 0; transform: translateY(-100%); }
+    }
+    
+    .toast.removing {
+      animation: slideOut 0.3s ease forwards;
+    }
+    
+    /* Tooltip styles */
+    .tippy-box[data-theme~='custom'] {
+      background-color: var(--base-100);
+      color: var(--base-content);
+      border: 1px solid var(--base-300);
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    }
+    
+    .tippy-box[data-theme~='custom'][data-placement^='top'] > .tippy-arrow::before {
+      border-top-color: var(--base-100);
+    }
+    
+    /* Enhanced progress bar */
+    .progress-ring {
+      transform: rotate(-90deg);
+      transform-origin: 50% 50%;
+    }
+    
+    .progress-ring__circle {
+      transition: stroke-dashoffset 0.35s;
+      stroke: var(--primary);
+      stroke-width: 4;
+      fill: transparent;
+    }
+    
+    .progress-ring__circle--bg {
+      stroke: var(--base-300);
+      stroke-width: 4;
+      fill: transparent;
+    }
+    
+    /* Intro.js customizations */
+    .introjs-tooltip {
+      background-color: var(--base-100) !important;
+      color: var(--base-content) !important;
+      border-radius: 0.5rem !important;
+      border: 1px solid var(--primary) !important;
+    }
+    
+    .introjs-button {
+      background-color: var(--primary) !important;
+      color: var(--primary-content) !important;
+      border-radius: 0.25rem !important;
+      border: none !important;
+      padding: 0.5rem 1rem !important;
+      text-shadow: none !important;
+      box-shadow: none !important;
+    }
+    
+    .introjs-helperNumberLayer {
+      background: var(--primary) !important;
+      color: var(--primary-content) !important;
+      border: none !important;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06) !important;
+    }
   </style>
 </head>
 <body class="min-h-screen bg-base-200">
+  <!-- Confetti canvas for celebrations -->
+  <canvas id="confetti-canvas" class="hidden"></canvas>
+  
+  <!-- Toast container -->
+  <div id="toast-container" class="toast-container"></div>
+  
   <div class="drawer">
     <input id="theme-drawer" type="checkbox" class="drawer-toggle" />
     <div class="drawer-content">
@@ -142,7 +328,7 @@
             {% include 'progress.html' %}
             {% include 'extension_filters.html' %}
             {% include 'directory_tree.html' %}
-            {% include 'grouping_controls.html' %}
+            <!-- Removed grouping_controls.html -->
             {% include 'action_buttons.html' %}
             {% set progress_id = "progressBottom" %}
             {% include 'progress.html' %}
@@ -161,48 +347,129 @@
         </div>
       </div>
       
-      <!-- Help modal -->
+      <!-- Help modal with enhanced UI -->
       <dialog id="helpModal" class="modal">
-        <form method="dialog" class="modal-box">
-          <h3 class="font-bold text-lg mb-4">How to use CodePrinter</h3>
-          <div class="space-y-4">
-            <div class="flex gap-3">
-              <div class="bg-primary text-primary-content rounded-full w-8 h-8 flex items-center justify-center flex-shrink-0">1</div>
-              <div>
-                <h4 class="font-medium">Select a repository</h4>
-                <p class="text-sm">Enter a GitHub URL or a local file path to load your repository.</p>
+        <form method="dialog" class="modal-box max-w-2xl">
+          <h3 class="font-bold text-xl mb-4 flex items-center">
+            <i class="fa-solid fa-book-open mr-2 text-primary"></i> 
+            How to use CodePrinter
+          </h3>
+          
+          <div class="tabs tabs-boxed mb-6">
+            <a class="tab tab-active" data-tab="basics">Guide</a>
+            <a class="tab" data-tab="keyboard">Keyboard Shortcuts</a>
+          </div>
+          
+          <div id="tabContent" class="overflow-y-auto max-h-[60vh]">
+            <!-- Guide tab content -->
+            <div data-content="basics" class="space-y-6">
+              <div class="space-y-4">
+                <div class="flex gap-3">
+                  <div class="bg-primary text-primary-content rounded-full w-8 h-8 flex items-center justify-center flex-shrink-0">1</div>
+                  <div>
+                    <h4 class="font-medium">Select a repository</h4>
+                    <p class="text-sm">Enter a GitHub URL or a local file path to load your repository.</p>
+                    <div class="mt-2 alert alert-info text-xs py-2">
+                      <i class="fa-solid fa-lightbulb"></i>
+                      <span>For GitHub private repositories, enter your access token if you haven't set it in your environment.</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="flex gap-3">
+                  <div class="bg-primary text-primary-content rounded-full w-8 h-8 flex items-center justify-center flex-shrink-0">2</div>
+                  <div>
+                    <h4 class="font-medium">Choose files</h4>
+                    <p class="text-sm">Select files from the directory tree or use file extension filters to quickly select files by type.</p>
+                    <div class="mt-2 flex flex-wrap gap-2">
+                      <span class="badge badge-sm badge-outline">Use "Select All" / "Select Root" buttons</span>
+                      <span class="badge badge-sm badge-outline">Click extension bubbles</span>
+                      <span class="badge badge-sm badge-outline">Use search</span>
+                      <span class="badge badge-sm badge-outline">Check folders</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="flex gap-3">
+                  <div class="bg-primary text-primary-content rounded-full w-8 h-8 flex items-center justify-center flex-shrink-0">3</div>
+                  <div>
+                    <h4 class="font-medium">Generate text</h4>
+                    <p class="text-sm">Click "Selected Files" to generate output only for checked files, or "Full Project" to include all files but highlight the selected ones.</p>
+                    <div class="mt-2 alert alert-info text-xs py-2">
+                      <i class="fa-solid fa-lightbulb"></i>
+                      <span>The token counter helps you track LLM compatibility.</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="flex gap-3">
+                  <div class="bg-primary text-primary-content rounded-full w-8 h-8 flex items-center justify-center flex-shrink-0">4</div>
+                  <div>
+                    <h4 class="font-medium">Use the output</h4>
+                    <p class="text-sm">Copy the text or download it as a file to share with LLMs.</p>
+                    <div class="mt-2 flex flex-wrap gap-2">
+                      <span class="badge badge-sm badge-outline">Copy to clipboard</span>
+                      <span class="badge badge-sm badge-outline">Download as file</span>
+                      <span class="badge badge-sm badge-outline">Toggle syntax highlighting</span>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
-            <div class="flex gap-3">
-              <div class="bg-primary text-primary-content rounded-full w-8 h-8 flex items-center justify-center flex-shrink-0">2</div>
-              <div>
-                <h4 class="font-medium">Choose files</h4>
-                <p class="text-sm">Select files from the directory tree or use file extension filters.</p>
+            
+            <!-- Keyboard Shortcuts tab content -->
+            <div data-content="keyboard" class="space-y-3 hidden">
+              <div class="overflow-x-auto">
+                <table class="table table-zebra table-compact w-full">
+                  <thead>
+                    <tr>
+                      <th>Shortcut</th>
+                      <th>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><kbd class="kbd kbd-sm">Ctrl</kbd> + <kbd class="kbd kbd-sm">F</kbd></td>
+                      <td>Focus search box</td>
+                    </tr>
+                    <tr>
+                      <td><kbd class="kbd kbd-sm">Ctrl</kbd> + <kbd class="kbd kbd-sm">E</kbd></td>
+                      <td>Expand all folders</td>
+                    </tr>
+                    <tr>
+                      <td><kbd class="kbd kbd-sm">Ctrl</kbd> + <kbd class="kbd kbd-sm">C</kbd></td>
+                      <td>Collapse all folders</td>
+                    </tr>
+                    <tr>
+                      <td><kbd class="kbd kbd-sm">Ctrl</kbd> + <kbd class="kbd kbd-sm">G</kbd></td>
+                      <td>Generate selected files</td>
+                    </tr>
+                    <tr>
+                      <td><kbd class="kbd kbd-sm">Ctrl</kbd> + <kbd class="kbd kbd-sm">Shift</kbd> + <kbd class="kbd kbd-sm">G</kbd></td>
+                      <td>Generate full project</td>
+                    </tr>
+                    <!-- Grouping shortcuts removed -->
+                    <tr>
+                      <td><kbd class="kbd kbd-sm">Escape</kbd></td>
+                      <td>Close modals/fullscreen</td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
-            </div>
-            <div class="flex gap-3">
-              <div class="bg-primary text-primary-content rounded-full w-8 h-8 flex items-center justify-center flex-shrink-0">3</div>
-              <div>
-                <h4 class="font-medium">Generate text</h4>
-                <p class="text-sm">Click "Selected Files" or "Full Project" to generate the output.</p>
-              </div>
-            </div>
-            <div class="flex gap-3">
-              <div class="bg-primary text-primary-content rounded-full w-8 h-8 flex items-center justify-center flex-shrink-0">4</div>
-              <div>
-                <h4 class="font-medium">Use the output</h4>
-                <p class="text-sm">Copy the text or download it as a file to share with LLMs.</p>
+              <div class="alert alert-info">
+                <i class="fa-solid fa-info-circle"></i>
+                <span>These shortcuts work when not focusing on an input field or textarea.</span>
               </div>
             </div>
           </div>
+          
           <div class="modal-action">
-            <button class="btn">Got it!</button>
+            <button class="btn btn-primary">Got it!</button>
           </div>
         </form>
         <form method="dialog" class="modal-backdrop">
           <button>close</button>
         </form>
       </dialog>
+      
+      <!-- Features modal removed -->
     </div>
     
     <!-- Theme drawer with previews -->
@@ -272,12 +539,38 @@
             <input type="checkbox" id="animatedBgToggle" class="toggle toggle-primary" />
           </label>
         </div>
+        
+        <div class="form-control">
+          <label class="label cursor-pointer">
+            <span class="label-text">Show Tooltips</span> 
+            <input type="checkbox" id="tooltipsToggle" class="toggle toggle-primary" checked />
+          </label>
+        </div>
+        
+        <div class="form-control">
+          <label class="label cursor-pointer">
+            <span class="label-text">Animations</span> 
+            <input type="checkbox" id="animationsToggle" class="toggle toggle-primary" checked />
+          </label>
+        </div>
+        
+        <div class="form-control">
+          <label class="label cursor-pointer">
+            <span class="label-text">Celebrations</span> 
+            <input type="checkbox" id="celebrationsToggle" class="toggle toggle-primary" checked />
+          </label>
+        </div>
       </div>
     </div>
   </div>
   
   {% include 'scripts.html' %}
   <script>
+    // Global variables for UI enhancements
+    let confettiInstance = null;
+    let introTour = null;
+    
+    // Theme management
     function setTheme(theme) {
       document.documentElement.setAttribute('data-theme', theme);
       localStorage.setItem('theme', theme);
@@ -286,31 +579,290 @@
       // Set animated bg for dark themes
       const isDarkTheme = ['dark', 'night', 'dracula', 'synthwave', 'forest', 'halloween'].includes(theme);
       document.body.classList.toggle('animated-bg', isDarkTheme && document.getElementById('animatedBgToggle').checked);
+      
+      // Update UI elements that depend on theme (like tippy tooltips)
+      if (window.tippyInstances) {
+        window.tippyInstances.forEach(instance => {
+          instance.setProps({
+            theme: 'custom'
+          });
+        });
+      }
+      
+      // Show toast notification
+      showToast(`Theme changed to ${theme}`, 'info');
     }
     
+    // Toast notification system
+    function showToast(message, type = 'info', duration = 3000) {
+      if (!document.getElementById('animationsToggle')?.checked) {
+        // If animations are disabled, use alert instead
+        if (type === 'error') {
+          Swal.fire({
+            title: 'Error',
+            text: message,
+            icon: 'error',
+            confirmButtonText: 'OK'
+          });
+        } else {
+          Swal.fire({
+            title: type.charAt(0).toUpperCase() + type.slice(1),
+            text: message,
+            icon: type === 'success' ? 'success' : 'info',
+            confirmButtonText: 'OK'
+          });
+        }
+        return;
+      }
+      
+      // Limit the number of toasts to 3
+      const container = document.getElementById('toast-container');
+      const existingToasts = container.querySelectorAll('.toast');
+      if (existingToasts.length >= 3) {
+        // Remove the oldest toast
+        removeToast(existingToasts[0]);
+      }
+      
+      const toast = document.createElement('div');
+      toast.className = `toast toast-${type}`;
+      
+      // Set icon based on type
+      let icon = 'fa-info-circle';
+      if (type === 'success') icon = 'fa-check-circle';
+      if (type === 'error') icon = 'fa-exclamation-circle';
+      if (type === 'warning') icon = 'fa-exclamation-triangle';
+      
+      toast.innerHTML = `
+        <div class="flex items-center gap-2 flex-1 justify-center">
+          <i class="fa-solid ${icon} text-${type}"></i>
+          <div class="font-medium">${message}</div>
+        </div>
+        <button class="btn btn-ghost btn-xs self-start" onclick="removeToast(this.parentElement)">
+          <i class="fa-solid fa-times"></i>
+        </button>
+      `;
+      
+      container.appendChild(toast);
+      
+      // Auto remove after duration
+      setTimeout(() => {
+        removeToast(toast);
+      }, duration);
+    }
+    
+    function removeToast(toast) {
+      if (!toast) return;
+      toast.classList.add('removing');
+      setTimeout(() => {
+        toast.remove();
+      }, 300);
+    }
+    
+    // Show celebration with confetti
+    function showCelebration(duration = 2000) {
+      if (!document.getElementById('celebrationsToggle')?.checked) return;
+      
+      const canvas = document.getElementById('confetti-canvas');
+      canvas.classList.remove('hidden');
+      
+      const confettiSettings = {
+        target: 'confetti-canvas',
+        max: 200,
+        size: 1,
+        animate: true,
+        props: ['circle', 'square', 'triangle', 'line'],
+        colors: [[165,104,246], [230,61,135], [0,199,228], [253,214,126]],
+        clock: 25,
+        respawn: false
+      };
+      
+      if (confettiInstance) {
+        confettiInstance.clear();
+      }
+      
+      confettiInstance = new ConfettiGenerator(confettiSettings);
+      confettiInstance.render();
+      
+      setTimeout(() => {
+        confettiInstance.clear();
+        canvas.classList.add('hidden');
+      }, duration);
+    }
+    
+    // Initialize tooltips
+    function initTooltips() {
+      // Initialize tippy.js tooltips
+      window.tippyInstances = tippy('[data-tooltip]', {
+        content: (reference) => reference.getAttribute('data-tooltip'),
+        placement: 'top',
+        arrow: true,
+        theme: 'custom',
+        duration: 200,
+        allowHTML: true
+      });
+      
+      // Toggle tooltips based on user preference
+      const tooltipsToggle = document.getElementById('tooltipsToggle');
+      if (tooltipsToggle) {
+        tooltipsToggle.addEventListener('change', () => {
+          localStorage.setItem('showTooltips', tooltipsToggle.checked);
+          if (tooltipsToggle.checked) {
+            window.tippyInstances.forEach(instance => instance.enable());
+          } else {
+            window.tippyInstances.forEach(instance => instance.disable());
+          }
+        });
+      }
+    }
+    
+    // Tour functionality removed
+    
+    // Handle tabs in the help modal
+    function initHelpTabs() {
+      const tabs = document.querySelectorAll('.tabs .tab');
+      const contentDivs = document.querySelectorAll('[data-content]');
+      
+      tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+          const targetTab = tab.getAttribute('data-tab');
+          
+          // Remove active class from all tabs
+          tabs.forEach(t => t.classList.remove('tab-active'));
+          // Add active class to clicked tab
+          tab.classList.add('tab-active');
+          
+          // Hide all content divs
+          contentDivs.forEach(div => div.classList.add('hidden'));
+          
+          // Show target content div
+          const targetContent = document.querySelector(`[data-content="${targetTab}"]`);
+          if (targetContent) {
+            targetContent.classList.remove('hidden');
+          }
+        });
+      });
+    }
+    
+    // Setup keyboard shortcuts
+    function setupKeyboardShortcuts() {
+      document.addEventListener('keydown', (e) => {
+        // Only handle shortcuts when not in input fields
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+        
+        // Ctrl + F: Focus search
+        if (e.ctrlKey && e.key === 'f') {
+          e.preventDefault();
+          document.getElementById('treeSearchInput')?.focus();
+        }
+        
+        // Ctrl + E: Expand all
+        if (e.ctrlKey && e.key === 'e') {
+          e.preventDefault();
+          toggleAllFolders(true);
+        }
+        
+        // Ctrl + C: Collapse all
+        if (e.ctrlKey && e.key === 'c') {
+          e.preventDefault();
+          toggleAllFolders(false);
+        }
+        
+        // Ctrl + G: Generate selected files
+        if (e.ctrlKey && e.key === 'g' && !e.shiftKey) {
+          e.preventDefault();
+          document.getElementById('generateTextButton')?.click();
+        }
+        
+        // Ctrl + Shift + G: Generate full project
+        if (e.ctrlKey && e.shiftKey && e.key === 'G') {
+          e.preventDefault();
+          document.getElementById('generateFullTextButton')?.click();
+        }
+        
+        // Ctrl + S: Save grouping
+        if (e.ctrlKey && e.key === 's') {
+          e.preventDefault();
+          document.getElementById('saveGrouping')?.click();
+        }
+        
+        // Ctrl + L: Load grouping
+        if (e.ctrlKey && e.key === 'l') {
+          e.preventDefault();
+          document.getElementById('loadGrouping')?.click();
+        }
+        
+        // Escape: Close modals/fullscreen
+        if (e.key === 'Escape') {
+          if (isFullscreen) {
+            toggleFullScreen();
+          }
+        }
+      });
+    }
+    
+    // First-time users check removed
+    
+    // DOM ready event handlers
     document.addEventListener('DOMContentLoaded', () => {
       const savedTheme = localStorage.getItem('theme') || 'nord';
       document.documentElement.setAttribute('data-theme', savedTheme);
       
+      // Setup UI enhancements
+      initHelpTabs();
+      setupKeyboardShortcuts();
+      
       // Setup animated background toggle
       const animToggle = document.getElementById('animatedBgToggle');
       const isAnimBg = localStorage.getItem('animatedBg') === 'true';
-      animToggle.checked = isAnimBg;
+      if (animToggle) {
+        animToggle.checked = isAnimBg;
+        
+        const isDarkTheme = ['dark', 'night', 'dracula', 'synthwave', 'forest', 'halloween'].includes(savedTheme);
+        document.body.classList.toggle('animated-bg', isDarkTheme && isAnimBg);
+        
+        animToggle.addEventListener('change', () => {
+          localStorage.setItem('animatedBg', animToggle.checked);
+          const currentTheme = document.documentElement.getAttribute('data-theme');
+          const isDark = ['dark', 'night', 'dracula', 'synthwave', 'forest', 'halloween'].includes(currentTheme);
+          document.body.classList.toggle('animated-bg', isDark && animToggle.checked);
+        });
+      }
       
-      const isDarkTheme = ['dark', 'night', 'dracula', 'synthwave', 'forest', 'halloween'].includes(savedTheme);
-      document.body.classList.toggle('animated-bg', isDarkTheme && isAnimBg);
+      // Setup tooltips toggle
+      const tooltipsToggle = document.getElementById('tooltipsToggle');
+      if (tooltipsToggle) {
+        const showTooltips = localStorage.getItem('showTooltips') !== 'false';
+        tooltipsToggle.checked = showTooltips;
+      }
       
-      animToggle.addEventListener('change', () => {
-        localStorage.setItem('animatedBg', animToggle.checked);
-        const currentTheme = document.documentElement.getAttribute('data-theme');
-        const isDark = ['dark', 'night', 'dracula', 'synthwave', 'forest', 'halloween'].includes(currentTheme);
-        document.body.classList.toggle('animated-bg', isDark && animToggle.checked);
-      });
+      // Setup animations toggle
+      const animationsToggle = document.getElementById('animationsToggle');
+      if (animationsToggle) {
+        const showAnimations = localStorage.getItem('showAnimations') !== 'false';
+        animationsToggle.checked = showAnimations;
+        
+        animationsToggle.addEventListener('change', () => {
+          localStorage.setItem('showAnimations', animationsToggle.checked);
+        });
+      }
+      
+      // Setup celebrations toggle
+      const celebrationsToggle = document.getElementById('celebrationsToggle');
+      if (celebrationsToggle) {
+        const showCelebrations = localStorage.getItem('showCelebrations') !== 'false';
+        celebrationsToggle.checked = showCelebrations;
+        
+        celebrationsToggle.addEventListener('change', () => {
+          localStorage.setItem('showCelebrations', celebrationsToggle.checked);
+        });
+      }
+      
+      // Initialize tooltips after DOM is ready
+      setTimeout(initTooltips, 500);
       
       // Help modal
       const helpBtn = document.getElementById('helpBtn');
       const helpModal = document.getElementById('helpModal');
-      
       if (helpBtn && helpModal) {
         helpBtn.addEventListener('click', () => {
           helpModal.showModal();
