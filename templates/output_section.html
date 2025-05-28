@@ -51,21 +51,7 @@
       </div>
     </div>
     
-    <!-- Progress bars for token usage visualization -->
-    <div class="mt-4 token-usage-container hidden">
-      <div class="flex justify-between text-xs mb-1">
-        <span>Token Usage</span>
-        <span id="tokenPercentage">0%</span>
-      </div>
-      <div class="w-full bg-base-300 rounded-full h-2 overflow-hidden">
-        <div id="tokenProgressBar" class="bg-primary rounded-full h-2 transition-all duration-300" style="width: 0%"></div>
-      </div>
-      <div class="flex justify-between text-xs mt-1 text-opacity-70 text-base-content">
-        <span>0</span>
-        <span class="text-warning">2000</span>
-        <span class="text-error">4000</span>
-      </div>
-    </div>
+    <!-- Token visualization removed -->
     
     <div class="card-actions justify-end gap-2 mt-4">
       <button id="copyButton" class="btn btn-info gap-2 hidden">
@@ -271,13 +257,11 @@
     const textarea = document.getElementById('outputText');
     const highlightedOutput = document.getElementById('highlightedOutput');
     const tokenCount = document.getElementById('tokenCount');
-    const tokenContainer = document.querySelector('.token-usage-container');
     const emptyStateOverlay = document.getElementById('emptyStateOverlay');
     
     if (textarea) textarea.value = '';
     if (highlightedOutput) highlightedOutput.innerHTML = '';
     if (tokenCount) tokenCount.textContent = '';
-    if (tokenContainer) tokenContainer.classList.add('hidden');
     if (emptyStateOverlay) emptyStateOverlay.style.opacity = '1';
     
     document.getElementById('copyButton').classList.add('hidden');

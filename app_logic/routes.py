@@ -8,7 +8,9 @@ from .config import app, GITHUB_TOKEN, DB_PATH
 from .utils import safe_path
 from .github_api import (parse_repo_url, get_github_refs, get_repo_default_branch,
                          fetch_repo_sha, fetch_repo_tree, fetch_github_file)
-from .database import save_path_history, get_path_history, save_selection, get_last_selection
+from .database import (save_path_history, get_path_history, save_selection, get_last_selection,
+                      get_file_formats, add_file_format, update_file_format,
+                      delete_file_format, update_file_format_order)
 
 @app.route("/")
 def index():
@@ -291,3 +293,102 @@ def save_current_selection():
         return jsonify({"status": "success", "message": "Selection saved"})
     except Exception as e:
         return jsonify({"error": f"Error saving selection: {str(e)}"}), 500
+
+@app.route("/api/file-formats", methods=["GET"])
+def get_all_file_formats():
+    """Get all file formats"""
+    try:
+        formats = get_file_formats()
+        print(f"API: Retrieved {len(formats)} file formats")
+        return jsonify({
+            "formats": formats,
+            "extensions": [f["extension"] for f in formats if f["enabled"]],
+            "colors": {f["extension"].lstrip('.'): f["color"] for f in formats if f["enabled"]},
+            "languages": {f["extension"].lstrip('.'): f["language"] for f in formats if f["enabled"] and f["language"] and f["language"] != ""},
+            "patterns": [f for f in formats if f["enabled"] and f.get("is_pattern", 0)]
+        })
+    except Exception as e:
+        return jsonify({"error": f"Error retrieving file formats: {str(e)}"}), 500
+
+@app.route("/api/file-formats", methods=["POST"])
+def add_new_file_format():
+    """Add a new file format"""
+    data = request.get_json()
+    print(f"Received new format data: {data}")
+    
+    extension = data.get("extension", "").strip()
+    color = data.get("color", "").strip()
+    language = data.get("language", "").strip()
+    enabled = data.get("enabled", 1)
+    is_pattern = data.get("is_pattern", 0)
+    
+    print(f"Processed format data: ext={extension}, color={color}, lang={language}, enabled={enabled}, is_pattern={is_pattern}")
+    
+    if not extension or not color:
+        return jsonify({"error": "Extension and color are required"}), 400
+    
+    try:
+        success = add_file_format(extension, color, language, enabled, is_pattern)
+        if success:
+            print(f"API: Successfully added format {extension}")
+            return jsonify({"status": "success", "message": f"File format {extension} added successfully"})
+        else:
+            print(f"API: Failed to add format {extension}")
+            return jsonify({"error": "Failed to add file format - database error"}), 500
+    except Exception as e:
+        import traceback
+        print(f"API: Exception adding format: {str(e)}")
+        traceback.print_exc()
+        return jsonify({"error": f"Error adding file format: {str(e)}"}), 500
+
+@app.route("/api/file-formats/<int:format_id>", methods=["PUT"])
+def update_existing_file_format(format_id):
+    """Update an existing file format"""
+    data = request.get_json()
+    extension = data.get("extension")
+    color = data.get("color")
+    language = data.get("language")
+    enabled = data.get("enabled")
+    display_order = data.get("display_order")
+    is_pattern = data.get("is_pattern")
+    
+    try:
+        success = update_file_format(
+            format_id, extension, color, language, enabled, display_order, is_pattern
+        )
+        if success:
+            return jsonify({"status": "success", "message": "File format updated successfully"})
+        else:
+            return jsonify({"error": "File format not found or no changes made"}), 404
+    except Exception as e:
+        return jsonify({"error": f"Error updating file format: {str(e)}"}), 500
+
+@app.route("/api/file-formats/<int:format_id>", methods=["DELETE"])
+def remove_file_format(format_id):
+    """Delete a file format"""
+    try:
+        success = delete_file_format(format_id)
+        if success:
+            return jsonify({"status": "success", "message": "File format deleted successfully"})
+        else:
+            return jsonify({"error": "File format not found"}), 404
+    except Exception as e:
+        return jsonify({"error": f"Error deleting file format: {str(e)}"}), 500
+
+@app.route("/api/file-formats/order", methods=["PUT"])
+def reorder_file_formats():
+    """Update the display order of file formats"""
+    data = request.get_json()
+    format_ids = data.get("formatIds", [])
+    
+    if not format_ids or not isinstance(format_ids, list):
+        return jsonify({"error": "Format IDs must be a non-empty list"}), 400
+    
+    try:
+        success = update_file_format_order(format_ids)
+        if success:
+            return jsonify({"status": "success", "message": "File format order updated successfully"})
+        else:
+            return jsonify({"error": "Failed to update file format order"}), 500
+    except Exception as e:
+        return jsonify({"error": f"Error updating file format order: {str(e)}"}), 500

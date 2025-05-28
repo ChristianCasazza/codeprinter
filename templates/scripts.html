@@ -2,13 +2,60 @@
   document.addEventListener('DOMContentLoaded', () => {
     console.log("DOM fully loaded");
 
-    // Constants
-    // ALLOWED_EXTENSIONS remain the same
-    const ALLOWED_EXTENSIONS = ['.json', '.py', '.js', '.ts', '.sql', '.yml', '.svelte', '.md', '.tsx', '.yaml', '.tsx', '.css', '.html', '.sh', '.bat', '.txt', '.php', '.toml'];
+    // Dynamic file formats - will be loaded from the API
+    let ALLOWED_EXTENSIONS = [];
+    let EXT_COLORS = {};
+    let FILE_LANGUAGES = {};
     
-    // Extension colors with better contrast
-    function getExtensionColors() {
-      return {
+    // Function to fetch file formats from the API
+    async function loadFileFormats() {
+      try {
+        const response = await fetch('/api/file-formats');
+        const result = await response.json();
+        
+        // Update global variables with fetched formats
+        ALLOWED_EXTENSIONS = result.extensions;
+        EXT_COLORS = Object.entries(result.colors).reduce((acc, [ext, color]) => {
+          acc[ext] = color;
+          return acc;
+        }, {});
+        FILE_LANGUAGES = result.languages;
+        
+        // Store pattern formats separately for pattern matching
+        window.FILE_PATTERNS = result.patterns || [];
+        
+        console.log("Loaded file formats:", { 
+          extensions: ALLOWED_EXTENSIONS.length, 
+          colors: Object.keys(EXT_COLORS).length 
+        });
+        
+        // If file formats were modified, update the UI if tree is already loaded
+        if (currentTree && currentTree.length > 0) {
+          displayDirectoryStructure(currentTree, currentRepoId);
+        }
+        
+        // Initialize any file format management UI
+        if (window.formatUIFunctions && typeof window.formatUIFunctions.updateTable === 'function') {
+          window.formatUIFunctions.updateTable(result.formats);
+        } else {
+          // Will use the placeholder function until extension_filters.html loads
+          window.updateFormatSettingsUI(result.formats);
+        }
+      } catch (error) {
+        console.error("Error loading file formats:", error);
+        // Fallback to default formats if API fails
+        setDefaultFormats();
+        if (typeof showToast === 'function') {
+          showToast("Error loading file formats. Using defaults.", 'error');
+        }
+      }
+    }
+    
+    // Fallback to defaults if API fails
+    function setDefaultFormats() {
+      ALLOWED_EXTENSIONS = ['.json', '.py', '.tpl', '.js', '.ts', '.sql', '.yml', '.svelte', '.md', '.tsx', '.yaml', '.tsx', '.css', '.html', '.sh', '.bat', '.txt', '.php', '.toml'];
+      
+      EXT_COLORS = {
         'json': '#4A55A7',
         'py': '#306998',
         'js': '#F0DB4F',
@@ -25,11 +72,55 @@
         'sh': '#4CAF50',
         'bat': '#8BC34A',
         'php': '#777BB3',
-        'svelte': '#FF3E00'
+        'svelte': '#FF3E00',
+        'tpl': '#1C86EE'
       };
+      
+      FILE_LANGUAGES = {
+        'js': 'javascript',
+        'ts': 'typescript',
+        'py': 'python',
+        'html': 'html',
+        'css': 'css',
+        'json': 'json',
+        'md': 'markdown',
+        'sql': 'sql',
+        'yml': 'yaml',
+        'yaml': 'yaml',
+        'sh': 'bash',
+        'bat': 'batch',
+        'php': 'php',
+        'toml': 'toml',
+        'svelte': 'svelte',
+        'tpl': 'html'
+      };
+      
+      // Default patterns
+      window.FILE_PATTERNS = [
+        {
+          extension: 'Dockerfile*',
+          color: '#2496ED',
+          language: 'dockerfile',  // Used by syntax highlighters
+          enabled: 1,
+          is_pattern: 1
+        }
+      ];
     }
     
-    const EXT_COLORS = getExtensionColors();
+    // Load file formats when the page loads
+    loadFileFormats();
+    
+    // Function to update the file format manager UI (defined in extension_filters.html)
+    window.updateFormatSettingsUI = function(formats) {
+      // This function is implemented in extension_filters.html
+      // We define it here as a placeholder to avoid errors if the function is called before it's defined
+      console.log("updateFormatSettingsUI called with", formats ? formats.length : 0, "formats");
+      
+      // If we have a reference to the actual function in the window object, call it directly
+      if (window.formatUIFunctions && typeof window.formatUIFunctions.updateTable === 'function') {
+        window.formatUIFunctions.updateTable(formats);
+      }
+    };
 
     // Grab references
     const githubModeDiv = document.getElementById('githubMode');
@@ -140,18 +231,21 @@
       console.log("Showing action buttons");
       const generateTextButton = document.getElementById('generateTextButton');
       const generateFullTextButton = document.getElementById('generateFullTextButton');
+      const generateReportButton = document.getElementById('generateReportButton');
       const outputText = document.getElementById('outputText');
       const copyButton = document.getElementById('copyButton');
       const downloadButton = document.getElementById('downloadButton');
       
-      if (generateTextButton && generateFullTextButton && outputText) {
+      if (generateTextButton && generateFullTextButton && generateReportButton && outputText) {
         generateTextButton.classList.remove('hidden');
         generateFullTextButton.classList.remove('hidden');
+        generateReportButton.classList.remove('hidden');
         
         // Show tool tips for action buttons
         if (generateTextButton.getAttribute('data-tooltip') === null) {
           generateTextButton.setAttribute('data-tooltip', 'Generate output only for selected files');
           generateFullTextButton.setAttribute('data-tooltip', 'Generate output for all files but highlight selected ones');
+          generateReportButton.setAttribute('data-tooltip', 'Generate a token count report for selected files');
         }
         
         // Initialize tooltips if they exist
@@ -168,7 +262,7 @@
         if (copyButton) copyButton.classList.add('hidden');
         if (downloadButton) downloadButton.classList.add('hidden');
       } else {
-        console.error("Action button elements missing:", { generateTextButton, generateFullTextButton, outputText });
+        console.error("Action button elements missing:", { generateTextButton, generateFullTextButton, generateReportButton, outputText });
       }
     }
 
@@ -279,7 +373,33 @@
         return;
       }
 
-      const filtered = tree.filter(item => ALLOWED_EXTENSIONS.some(ext => item.path.toLowerCase().endsWith(ext)));
+      // Pattern matching helper function 
+      function matchesPattern(path, pattern) {
+        // Convert glob pattern to regex
+        const regexPattern = pattern
+          .replace(/\./g, '\\.')     // Escape dots
+          .replace(/\*/g, '.*')      // Convert * to .*
+          .replace(/\?/g, '.');      // Convert ? to .
+        
+        const regex = new RegExp(`^${regexPattern}$`);
+        const filename = path.split('/').pop(); // Get just the filename
+        return regex.test(filename);
+      }
+      
+      // Filter files by both extensions and patterns
+      const filtered = tree.filter(item => {
+        // Check if file matches any extension
+        const extensionMatch = ALLOWED_EXTENSIONS.some(ext => 
+          item.path.toLowerCase().endsWith(ext)
+        );
+        
+        // Check if file matches any pattern
+        const patternMatch = window.FILE_PATTERNS && window.FILE_PATTERNS.some(pattern => 
+          matchesPattern(item.path, pattern.extension)
+        );
+        
+        return extensionMatch || patternMatch;
+      });
       filtered.sort((a, b) => a.path.localeCompare(b.path));
 
       const directoryStructure = {};
@@ -319,7 +439,7 @@
         if (typeof item === 'object' && !item.path) {
           // Folder node
           const details = document.createElement('details');
-          details.open = true;
+          details.open = false;  // Folders collapsed by default
           const summary = document.createElement('summary');
           summary.className = 'folder-node font-bold flex items-center';
           
@@ -335,7 +455,29 @@
           checkbox.classList.add('folder-checkbox');
           li.insertBefore(checkbox, details);
 
+          // Separate folders and files
+          const childFolders = [];
+          const childFiles = [];
+          
           for (const [childName, childItem] of Object.entries(item)) {
+            if (typeof childItem === 'object' && !childItem.path) {
+              // This is a folder
+              childFolders.push([childName, childItem]);
+            } else {
+              // This is a file
+              childFiles.push([childName, childItem]);
+            }
+          }
+          
+          // Add folders first
+          childFolders.sort((a, b) => a[0].localeCompare(b[0]));
+          for (const [childName, childItem] of childFolders) {
+            createTreeNode(childName, childItem, ul, depth + 1);
+          }
+          
+          // Then add files
+          childFiles.sort((a, b) => a[0].localeCompare(b[0]));
+          for (const [childName, childItem] of childFiles) {
             createTreeNode(childName, childItem, ul, depth + 1);
           }
 
@@ -377,7 +519,29 @@
         });
       }
 
+      // Separate root folders and files
+      const rootFolders = [];
+      const rootFiles = [];
+      
       for (const [name, item] of Object.entries(directoryStructure)) {
+        if (typeof item === 'object' && !item.path) {
+          // This is a folder
+          rootFolders.push([name, item]);
+        } else {
+          // This is a file
+          rootFiles.push([name, item]);
+        }
+      }
+      
+      // Add root folders first
+      rootFolders.sort((a, b) => a[0].localeCompare(b[0]));
+      for (const [name, item] of rootFolders) {
+        createTreeNode(name, item, rootUl);
+      }
+      
+      // Then add root files
+      rootFiles.sort((a, b) => a[0].localeCompare(b[0]));
+      for (const [name, item] of rootFiles) {
         createTreeNode(name, item, rootUl);
       }
 
@@ -550,26 +714,65 @@
       return output;
     }
     
+    function formatTokenReport(contents) {
+      // Calculate token counts for each file
+      const fileTokens = contents.map(file => {
+        let tokenCount = 0;
+        try {
+          if (typeof GPTTokenizer_cl100k_base !== 'undefined') {
+            tokenCount = GPTTokenizer_cl100k_base.encode(file.text).length;
+          }
+        } catch (err) {
+          console.error(`Token count error for ${file.path}:`, err);
+        }
+        return {
+          path: file.path,
+          tokens: tokenCount
+        };
+      });
+      
+      // Sort by token count (descending)
+      fileTokens.sort((a, b) => b.tokens - a.tokens);
+      
+      // Calculate total token count
+      const totalTokens = fileTokens.reduce((sum, file) => sum + file.tokens, 0);
+      
+      // Format the report with directory structure and token table
+      let output = '# Token Count Report\n\n';
+      
+      // Directory structure section
+      output += '## Directory Structure (Selected Files)\n\n';
+      output += contents.map(c => `├── ${c.path}`).join('\n');
+      
+      // Token count table
+      output += '\n\n## Token Counts by File (Descending)\n\n';
+      output += '| File | Token Count | % of Total |\n';
+      output += '|------|-------------|------------|\n';
+      
+      fileTokens.forEach(file => {
+        const percentage = totalTokens > 0 ? ((file.tokens / totalTokens) * 100).toFixed(1) : 0;
+        output += `| ${file.path} | ${file.tokens.toLocaleString()} | ${percentage}% |\n`;
+      });
+      
+      // Summary
+      output += `\n\n## Summary\n\n`;
+      output += `- **Total Files:** ${fileTokens.length}\n`;
+      output += `- **Total Tokens:** ${totalTokens.toLocaleString()}\n`;
+      output += `- **Average Tokens per File:** ${(totalTokens / (fileTokens.length || 1)).toFixed(0).toLocaleString()}\n`;
+      
+      // Update token counter in UI
+      try {
+        updateTokenCount(output);
+      } catch (err) {
+        console.error("Token count error:", err);
+      }
+      
+      return output;
+    }
+    
     function getLanguageFromPath(path) {
       const ext = path.split('.').pop().toLowerCase();
-      const langMap = {
-        'js': 'javascript',
-        'ts': 'typescript',
-        'py': 'python',
-        'html': 'html',
-        'css': 'css',
-        'json': 'json',
-        'md': 'markdown',
-        'sql': 'sql',
-        'yml': 'yaml',
-        'yaml': 'yaml',
-        'sh': 'bash',
-        'bat': 'batch',
-        'php': 'php',
-        'toml': 'toml',
-        'svelte': 'svelte'
-      };
-      return langMap[ext] || '';
+      return FILE_LANGUAGES[ext] || '';
     }
     
     // Original placeholder for token counting
@@ -577,46 +780,17 @@
       try {
         if (typeof GPTTokenizer_cl100k_base !== 'undefined') {
           const tokens = GPTTokenizer_cl100k_base.encode(text).length;
-          document.getElementById('tokenCount').textContent = `${tokens.toLocaleString()}`;
-          
-          // Update token progress visualization
-          updateTokenDisplay(tokens);
+          const tokenCount = document.getElementById('tokenCount');
+          if (tokenCount) {
+            tokenCount.textContent = `${tokens.toLocaleString()} tokens`;
+          }
         }
       } catch (err) {
         console.error("Token count error or tokenizer not loaded:", err);
       }
     };
     
-    // Token display with progress visualization
-    function updateTokenDisplay(count) {
-      const tokenCount = document.getElementById('tokenCount');
-      const tokenBar = document.getElementById('tokenProgressBar');
-      const tokenPercentage = document.getElementById('tokenPercentage');
-      const tokenContainer = document.querySelector('.token-usage-container');
-      
-      if (!tokenCount || !tokenBar || !tokenPercentage || !tokenContainer) return;
-      
-      tokenContainer.classList.remove('hidden');
-      tokenCount.textContent = `${count.toLocaleString()} tokens`;
-      
-      const maxTokens = 4000;
-      const percentage = Math.min(100, (count / maxTokens) * 100);
-      
-      tokenBar.style.width = `${percentage}%`;
-      tokenPercentage.textContent = `${Math.round(percentage)}%`;
-      
-      if (percentage > 90) {
-        tokenBar.className = 'bg-error rounded-full h-1.5';
-        // Show warning if over 90%
-        if (typeof showToast === 'function') {
-          showToast(`Warning: Token count is at ${Math.round(percentage)}% of typical LLM limit`, 'warning');
-        }
-      } else if (percentage > 70) {
-        tokenBar.className = 'bg-warning rounded-full h-1.5';
-      } else {
-        tokenBar.className = 'bg-primary rounded-full h-1.5';
-      }
-    }
+    // Token display function removed
 
     function formatFullRepoContents(contents, selected) {
       contents.sort((a, b) => a.path.localeCompare(b.path));
@@ -890,6 +1064,51 @@
         }
       }
     });
+    
+    // Generate token report for selected files
+    document.getElementById('generateReportButton').addEventListener('click', async () => {
+      const selected = getSelectedFiles();
+      if (!selected.length) {
+        if (typeof showToast === 'function') {
+          showToast("Please select at least one file for the report", 'warning');
+        } else {
+          alert("No files selected for the report.");
+        }
+        return;
+      }
+      
+      const data = { repoIdentifier: basePath, filePaths: selected.map(f => f.path) };
+      {% if not has_github_token %} if (isGithub) data.accessToken = document.getElementById('accessToken')?.value.trim(); {% endif %}
+      
+      try {
+        if (typeof showToast === 'function') {
+          showToast(`Generating token report for ${selected.length} files...`, 'info');
+        }
+        
+        const contents = await fetchData('/api/file-contents', data, true);
+        const outputText = document.getElementById('outputText');
+        outputText.value = formatTokenReport(contents);
+        document.getElementById('copyButton').classList.remove('hidden');
+        document.getElementById('downloadButton').classList.remove('hidden');
+        
+        // Hide the empty state overlay
+        const emptyStateOverlay = document.getElementById('emptyStateOverlay');
+        if (emptyStateOverlay) {
+          emptyStateOverlay.style.opacity = '0';
+        }
+        
+        // Show success message
+        if (typeof showToast === 'function') {
+          showToast("Token report generated successfully!", 'success');
+        }
+      } catch (err) {
+        if (typeof showToast === 'function') {
+          showToast("Error: " + err.message, 'error');
+        } else {
+          alert("Error: " + err.message);
+        }
+      }
+    });
 
     // Copy to clipboard
     document.getElementById('copyButton').addEventListener('click', () => {
@@ -1032,7 +1251,8 @@
         { selector: '#expandButton', tooltip: 'Toggle fullscreen view' },
         { selector: '#copyButton', tooltip: 'Copy output to clipboard' },
         { selector: '#downloadButton', tooltip: 'Download output as file' },
-        { selector: '#allBubble', tooltip: 'Select or deselect all file types' }
+        { selector: '#allBubble', tooltip: 'Select or deselect all file types' },
+        { selector: '#generateReportButton', tooltip: 'Generate a token count report for selected files' }
       ];
       
       tooltipData.forEach(item => {

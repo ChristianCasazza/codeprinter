@@ -24,6 +24,9 @@
         <button class="btn btn-xs btn-outline" onclick="clearAllExtensions()" data-tooltip="Deselect all file types">
           <i class="fa-solid fa-times mr-1"></i> None
         </button>
+        <button class="btn btn-xs btn-primary" onclick="showFileFormatManager()" data-tooltip="Manage file formats">
+          <i class="fa-solid fa-cog mr-1"></i> Manage
+        </button>
       </div>
     </div>
     
@@ -45,6 +48,104 @@
     </div>
   </div>
 </div>
+
+<!-- File Format Manager Modal -->
+<dialog id="fileFormatManagerModal" class="modal">
+  <div class="modal-box w-11/12 max-w-4xl">
+    <h3 class="font-bold text-lg flex items-center">
+      <i class="fa-solid fa-file-code mr-2"></i>
+      File Format Manager
+    </h3>
+    <p class="py-2">Customize which file formats are displayed and how they appear. Changes apply instantly.</p>
+    
+    <div class="divider"></div>
+    
+    <div class="overflow-x-auto">
+      <table class="table table-zebra w-full">
+        <thead>
+          <tr>
+            <th>Extension/Pattern</th>
+            <th>Color</th>
+            <th>Language</th>
+            <th>Enabled</th>
+            <th>Type</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="fileFormatsTable">
+          <!-- File formats will be inserted here -->
+          <tr>
+            <td colspan="6" class="text-center py-4">
+              <span class="loading loading-spinner loading-md"></span>
+              <span class="ml-2">Loading file formats...</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    
+    <div class="divider"></div>
+    
+    <!-- Add New Format Form -->
+    <div class="bg-base-200 p-4 rounded-lg">
+      <h4 class="font-semibold mb-3 flex items-center">
+        <i class="fa-solid fa-plus-circle mr-2"></i>
+        Add New File Format
+      </h4>
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+        <div class="form-control">
+          <label class="label">
+            <span class="label-text">Extension</span>
+          </label>
+          <input type="text" id="newFormatExt" placeholder=".ext" class="input input-bordered w-full" />
+          <label class="label">
+            <span class="label-text-alt">Include the dot (.) for extensions</span>
+          </label>
+          <div class="form-control">
+            <label class="label cursor-pointer">
+              <span class="label-text">Is filename pattern (like Dockerfile*)</span> 
+              <input type="checkbox" id="newFormatIsPattern" class="toggle toggle-primary" />
+            </label>
+            <span class="text-xs opacity-60 mt-1">Enable for non-extension files like Dockerfile_* or Makefile</span>
+          </div>
+        </div>
+        <div class="form-control">
+          <label class="label">
+            <span class="label-text">Color</span>
+          </label>
+          <div class="flex">
+            <input type="color" id="newFormatColor" class="input h-10 w-10 p-1 mr-2" value="#3490dc" />
+            <input type="text" id="newFormatColorHex" class="input input-bordered flex-1" value="#3490dc" />
+          </div>
+        </div>
+        <div class="form-control">
+          <label class="label">
+            <span class="label-text">Language</span>
+          </label>
+          <input type="text" id="newFormatLanguage" placeholder="e.g. javascript" class="input input-bordered w-full" />
+        </div>
+        <div class="form-control">
+          <label class="label opacity-0">
+            <span class="label-text">Add</span>
+          </label>
+          <button id="addFormatBtn" class="btn btn-primary w-full">
+            <i class="fa-solid fa-plus mr-2"></i>
+            Add Format
+          </button>
+        </div>
+      </div>
+    </div>
+    
+    <div class="modal-action">
+      <form method="dialog">
+        <button class="btn">Close</button>
+      </form>
+    </div>
+  </div>
+  <form method="dialog" class="modal-backdrop">
+    <button>close</button>
+  </form>
+</dialog>
 
 <style>
   /* Extension bubbles enhancements */
@@ -151,6 +252,17 @@
     text-shadow: none;
     box-shadow: 0 2px 5px rgba(0,0,0,0.5), inset 0 0 0 1px rgba(255,255,255,0.1);
   }
+  
+  /* Format table styles */
+  .format-color-preview {
+    width: 24px;
+    height: 24px;
+    display: inline-block;
+    border-radius: 4px;
+    vertical-align: middle;
+    margin-right: 8px;
+    border: 1px solid rgba(0,0,0,0.1);
+  }
 </style>
 
 <script>
@@ -189,7 +301,391 @@
     }
   }
   
-  document.addEventListener('DOMContentLoaded', () => {
+  function showFileFormatManager() {
+    // Ensure modal exists
+    const modal = document.getElementById('fileFormatManagerModal');
+    if (modal) {
+      modal.showModal();
+      refreshFileFormatsTable();
+    }
+  }
+  
+  function refreshFileFormatsTable() {
+    console.log("Refreshing file formats table");
+    
+    // Add a timestamp to force a fresh response (avoid caching)
+    const timestamp = new Date().getTime();
+    fetch(`/api/file-formats?t=${timestamp}`)
+      .then(response => {
+        if (!response.ok) {
+          throw new Error(`HTTP error ${response.status}`);
+        }
+        return response.json();
+      })
+      .then(data => {
+        console.log("Formats loaded:", data.formats ? data.formats.length : 'none');
+        // Use the global function reference
+        if (window.formatUIFunctions && typeof window.formatUIFunctions.updateTable === 'function') {
+          window.formatUIFunctions.updateTable(data.formats);
+        } else {
+          // Fallback to direct call
+          updateFormatSettingsTableUI(data.formats);
+        }
+      })
+      .catch(error => {
+        console.error("Error fetching file formats:", error);
+        if (typeof showToast === 'function') {
+          showToast("Error loading file formats", 'error');
+        }
+      });
+  }
+  
+  // Create a global reference to the functions
+  window.formatUIFunctions = {
+    updateTable: null,  // Will be assigned below
+    refreshTable: refreshFileFormatsTable
+  };
+  
+  // Update the file formats table in the modal
+  function updateFormatSettingsTableUI(formats) {
+    console.log("Updating format settings UI with", formats ? formats.length : 0, "formats");
+    const table = document.getElementById('fileFormatsTable');
+    if (!table) {
+      console.error("File formats table element not found");
+      return;
+    }
+    
+    // Assign to global reference
+    window.formatUIFunctions.updateTable = updateFormatSettingsTableUI;
+    
+    // Safety check
+    if (!formats || !Array.isArray(formats)) {
+      console.error("Invalid formats data:", formats);
+      table.innerHTML = `<tr><td colspan="5" class="text-center py-4">Error loading formats</td></tr>`;
+      return;
+    }
+    
+    // Clear existing rows
+    table.innerHTML = '';
+    
+    // Sort formats by display order
+    const sortedFormats = [...formats].sort((a, b) => a.display_order - b.display_order);
+    
+    if (sortedFormats.length === 0) {
+      table.innerHTML = `<tr><td colspan="5" class="text-center py-4">No file formats found</td></tr>`;
+      return;
+    }
+    
+    // Add rows for each format
+    sortedFormats.forEach(format => {
+      const row = document.createElement('tr');
+      row.dataset.formatId = format.id;
+      
+      // Extension column
+      const extCell = document.createElement('td');
+      extCell.textContent = format.extension;
+      row.appendChild(extCell);
+      
+      // Color column
+      const colorCell = document.createElement('td');
+      colorCell.innerHTML = `
+        <div class="flex items-center">
+          <span class="format-color-preview" style="background-color: ${format.color}"></span>
+          <span>${format.color}</span>
+        </div>
+      `;
+      row.appendChild(colorCell);
+      
+      // Language column
+      const langCell = document.createElement('td');
+      langCell.textContent = format.language || '-';
+      row.appendChild(langCell);
+      
+      // Enabled column
+      const enabledCell = document.createElement('td');
+      enabledCell.innerHTML = `
+        <input type="checkbox" class="toggle toggle-primary toggle-sm format-enabled-toggle" 
+               ${format.enabled ? 'checked' : ''} 
+               data-format-id="${format.id}">
+      `;
+      row.appendChild(enabledCell);
+      
+      // Type column
+      const typeCell = document.createElement('td');
+      typeCell.innerHTML = `
+        <span class="badge ${format.is_pattern ? 'badge-warning' : 'badge-info'}">
+          ${format.is_pattern ? 'Pattern' : 'Extension'}
+        </span>
+      `;
+      row.appendChild(typeCell);
+      
+      // Actions column
+      const actionsCell = document.createElement('td');
+      actionsCell.innerHTML = `
+        <div class="flex space-x-2">
+          <button class="btn btn-xs btn-outline btn-info edit-format-btn" data-format-id="${format.id}">
+            <i class="fa-solid fa-edit"></i>
+          </button>
+          <button class="btn btn-xs btn-outline btn-error delete-format-btn" data-format-id="${format.id}">
+            <i class="fa-solid fa-trash"></i>
+          </button>
+        </div>
+      `;
+      row.appendChild(actionsCell);
+      
+      table.appendChild(row);
+    });
+    
+    // Add event listeners to the toggle switches
+    document.querySelectorAll('.format-enabled-toggle').forEach(toggle => {
+      toggle.addEventListener('change', async (e) => {
+        const formatId = parseInt(e.target.dataset.formatId);
+        const enabled = e.target.checked ? 1 : 0;
+        
+        try {
+          const response = await fetch(`/api/file-formats/${formatId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ enabled })
+          });
+          
+          if (response.ok) {
+            if (typeof showToast === 'function') {
+              showToast(`Format ${enabled ? 'enabled' : 'disabled'}`, 'success');
+            }
+            
+            // Reload formats to update UI
+            reloadFormatsHelper();
+          } else {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to update format');
+          }
+        } catch (error) {
+          console.error("Error updating format:", error);
+          if (typeof showToast === 'function') {
+            showToast(error.message, 'error');
+          }
+          // Revert toggle state
+          e.target.checked = !e.target.checked;
+        }
+      });
+    });
+    
+    // Add event listeners to edit buttons
+    document.querySelectorAll('.edit-format-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const formatId = btn.dataset.formatId;
+        const format = formats.find(f => f.id == formatId);
+        if (format) {
+          editFileFormat(format);
+        }
+      });
+    });
+    
+    // Add event listeners to delete buttons
+    document.querySelectorAll('.delete-format-btn').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        const formatId = btn.dataset.formatId;
+        const format = formats.find(f => f.id == formatId);
+        
+        if (format && confirm(`Are you sure you want to delete the ${format.extension} format?`)) {
+          try {
+            const response = await fetch(`/api/file-formats/${formatId}`, {
+              method: 'DELETE'
+            });
+            
+            if (response.ok) {
+              if (typeof showToast === 'function') {
+                showToast(`Format ${format.extension} deleted`, 'success');
+              }
+              
+              // Reload formats to update UI
+              reloadFormatsHelper();
+              refreshFileFormatsTable();
+            } else {
+              const error = await response.json();
+              throw new Error(error.error || 'Failed to delete format');
+            }
+          } catch (error) {
+            console.error("Error deleting format:", error);
+            if (typeof showToast === 'function') {
+              showToast(error.message, 'error');
+            }
+          }
+        }
+      });
+    });
+  }
+  
+  function editFileFormat(format) {
+    // Create modal for editing
+    const modal = document.createElement('dialog');
+    modal.className = 'modal';
+    modal.innerHTML = `
+      <div class="modal-box">
+        <h3 class="font-bold text-lg mb-4">Edit File Format</h3>
+        <form id="editFormatForm">
+          <div class="form-control mb-4">
+            <label class="label">
+              <span class="label-text">Extension or Pattern</span>
+            </label>
+            <input type="text" id="editFormatExt" class="input input-bordered" value="${format.extension}" />
+            <div class="form-control mt-2">
+              <label class="label cursor-pointer">
+                <span class="label-text">Is filename pattern (like Dockerfile*)</span> 
+                <input type="checkbox" id="editFormatIsPattern" class="toggle toggle-primary" ${format.is_pattern ? 'checked' : ''} />
+              </label>
+              <span class="text-xs opacity-60 mt-1">Enable for non-extension files like Dockerfile_* or Makefile</span>
+            </div>
+          </div>
+          <div class="form-control mb-4">
+            <label class="label">
+              <span class="label-text">Color</span>
+            </label>
+            <div class="flex">
+              <input type="color" id="editFormatColor" class="input h-10 w-10 p-1 mr-2" value="${format.color}" />
+              <input type="text" id="editFormatColorHex" class="input input-bordered flex-1" value="${format.color}" />
+            </div>
+          </div>
+          <div class="form-control mb-4">
+            <label class="label">
+              <span class="label-text">Language</span>
+            </label>
+            <input type="text" id="editFormatLanguage" class="input input-bordered" value="${format.language || ''}" />
+          </div>
+          <div class="modal-action">
+            <button type="button" class="btn btn-error" onclick="this.closest('dialog').close()">Cancel</button>
+            <button type="submit" class="btn btn-primary">Save Changes</button>
+          </div>
+        </form>
+      </div>
+      <form method="dialog" class="modal-backdrop">
+        <button>close</button>
+      </form>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // Setup color input sync
+    const colorInput = modal.querySelector('#editFormatColor');
+    const hexInput = modal.querySelector('#editFormatColorHex');
+    
+    colorInput.addEventListener('input', () => {
+      hexInput.value = colorInput.value;
+    });
+    
+    hexInput.addEventListener('input', () => {
+      if (/^#[0-9A-F]{6}$/i.test(hexInput.value)) {
+        colorInput.value = hexInput.value;
+      }
+    });
+    
+    // Setup form submission
+    const form = modal.querySelector('#editFormatForm');
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const extension = modal.querySelector('#editFormatExt').value.trim();
+      const color = modal.querySelector('#editFormatColorHex').value.trim();
+      const language = modal.querySelector('#editFormatLanguage').value.trim();
+      const isPattern = modal.querySelector('#editFormatIsPattern').checked ? 1 : 0;
+      
+      if (!extension || !color) {
+        if (typeof showToast === 'function') {
+          showToast('Extension and color are required', 'error');
+        }
+        return;
+      }
+      
+      try {
+        const response = await fetch(`/api/file-formats/${format.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ extension, color, language, is_pattern: isPattern })
+        });
+        
+        if (response.ok) {
+          if (typeof showToast === 'function') {
+            showToast(`Format ${extension} updated`, 'success');
+          }
+          
+          // Reload formats to update UI
+          reloadFormatsHelper();
+          refreshFileFormatsTable();
+          modal.close();
+          
+          // Clean up the modal after closing
+          setTimeout(() => {
+            modal.remove();
+          }, 300);
+        } else {
+          const error = await response.json();
+          throw new Error(error.error || 'Failed to update format');
+        }
+      } catch (error) {
+        console.error("Error updating format:", error);
+        if (typeof showToast === 'function') {
+          showToast(error.message, 'error');
+        }
+      }
+    });
+    
+    modal.showModal();
+  }
+  
+    // Helper function to reload formats when loadFileFormats is not available
+  function reloadFormatsHelper() {
+    if (typeof loadFileFormats === 'function') {
+      console.log("Using loadFileFormats function to refresh formats");
+      loadFileFormats();
+      return;
+    }
+    
+    console.log("Using fetch fallback to refresh formats");
+    // If loaded in a different order, try to reload through window
+    try {
+      // Add a timestamp to force a fresh response
+      const timestamp = new Date().getTime();
+      fetch(`/api/file-formats?t=${timestamp}`)
+        .then(response => {
+          if (!response.ok) {
+            throw new Error(`HTTP error ${response.status}`);
+          }
+          return response.json();
+        })
+        .then(data => {
+          console.log("API data received:", data);
+          if (window.ALLOWED_EXTENSIONS) {
+            window.ALLOWED_EXTENSIONS = data.extensions;
+          }
+          if (window.EXT_COLORS) {
+            window.EXT_COLORS = data.colors;
+          }
+          if (window.FILE_LANGUAGES) {
+            window.FILE_LANGUAGES = data.languages;
+          }
+          if (data.patterns) {
+            window.FILE_PATTERNS = data.patterns;
+          }
+          console.log("Reloaded formats:", data.extensions ? data.extensions.length : 0, "extensions");
+          
+          // Force redisplay if tree is loaded
+          if (window.currentTree && window.currentTree.length > 0) {
+            console.log("Refreshing tree display with updated formats");
+            if (typeof displayDirectoryStructure === 'function') {
+              displayDirectoryStructure(window.currentTree, window.currentRepoId);
+            }
+          }
+        })
+        .catch(err => {
+          console.error("Error in fetch during reload:", err);
+        });
+    } catch (err) {
+      console.error("Error reloading formats:", err);
+    }
+  }
+
+document.addEventListener('DOMContentLoaded', () => {
     // Show loading indicators while waiting for extensions to load
     const extContainer = document.getElementById('extBubbleContainer');
     if (extContainer && extContainer.children.length === 0) {
@@ -207,6 +703,79 @@
     if (viewTypeCode && viewTypeTree) {
       viewTypeCode.addEventListener('change', updateViewMode);
       viewTypeTree.addEventListener('change', updateViewMode);
+    }
+    
+    // Setup the Add Format form
+    const addFormatBtn = document.getElementById('addFormatBtn');
+    if (addFormatBtn) {
+      // Sync color inputs
+      const colorInput = document.getElementById('newFormatColor');
+      const hexInput = document.getElementById('newFormatColorHex');
+      
+      if (colorInput && hexInput) {
+        colorInput.addEventListener('input', () => {
+          hexInput.value = colorInput.value;
+        });
+        
+        hexInput.addEventListener('input', () => {
+          if (/^#[0-9A-F]{6}$/i.test(hexInput.value)) {
+            colorInput.value = hexInput.value;
+          }
+        });
+      }
+      
+      // Handle form submission
+      addFormatBtn.addEventListener('click', async () => {
+        const extension = document.getElementById('newFormatExt').value.trim();
+        const color = document.getElementById('newFormatColorHex').value.trim();
+        const language = document.getElementById('newFormatLanguage').value.trim();
+        
+        if (!extension || !color) {
+          if (typeof showToast === 'function') {
+            showToast('Extension and color are required', 'error');
+          }
+          return;
+        }
+        
+        console.log("Adding new format with values:", { extension, color, language });
+        
+        // Check if the pattern checkbox exists
+        const patternCheckbox = document.getElementById('newFormatIsPattern');
+        const isPattern = patternCheckbox && patternCheckbox.checked ? 1 : 0;
+        console.log("Is pattern?", isPattern);
+        try {
+          const response = await fetch('/api/file-formats', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ extension, color, language, enabled: 1, is_pattern: isPattern })
+          });
+          
+          const result = await response.json();
+          console.log("Add format API response:", result);
+          
+          if (response.ok) {
+            // Clear form
+            document.getElementById('newFormatExt').value = '';
+            document.getElementById('newFormatLanguage').value = '';
+            
+            if (typeof showToast === 'function') {
+              showToast(`Format ${extension} added`, 'success');
+            }
+            
+            // Reload formats to update UI
+            reloadFormatsHelper();
+            refreshFileFormatsTable();
+          } else {
+            console.error("Error response from server:", response.status, result);
+            throw new Error(result.error || 'Failed to add format');
+          }
+        } catch (error) {
+          console.error("Error adding format:", error);
+          if (typeof showToast === 'function') {
+            showToast(error.message || "Unknown error adding format", 'error');
+          }
+        }
+      });
     }
   });
   

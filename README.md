@@ -66,8 +66,18 @@ Within the `app.py`, you'll find the `skip_dirs` variable, which lists directori
 
 Edit this list as needed to customize which folders are skipped.
 
-### Allowed File Types
-To configure the file types displayed in the UI, edit the `ALLOWED_EXTENSIONS` constant in the scripts.html file. This allows you to control the file extensions visible in the application.
+### Managing File Formats
+CodePrinter now includes a dynamic file format management system:
+
+1. Click the "Manage" button next to the file extension filters
+2. Add, edit, or delete file formats through the Format Manager
+3. Customize:
+   - File extensions (e.g., `.js`, `.py`)
+   - Display colors
+   - Syntax highlighting language
+   - Enable/disable specific formats
+
+Changes take effect immediately without editing code. The formats are stored in the database for persistence between sessions.
 
 ### Working with GitHub
 Passing public GitHub repo links works in GitHub mode the same way as local mode.
