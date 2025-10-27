@@ -5,7 +5,6 @@
   <title>CodePrinter - Code Export Tool</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://cdn.jsdelivr.net/npm/daisyui@4.x/dist/full.min.css" rel="stylesheet" />
-  <script async src="https://unpkg.com/gpt-tokenizer"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/animate.css@4.1.1/animate.min.css" />
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -593,10 +592,34 @@
       showToast(`Theme changed to ${theme}`, 'info');
     }
     
-    // Toast notification system
+    // Toast notification system with multi-tab awareness
     function showToast(message, type = 'info', duration = 3000) {
+      // Check for duplicate notifications across tabs within 5 seconds
+      const notificationKey = `toast_${message}_${type}`;
+      const lastShown = localStorage.getItem(notificationKey);
+      const now = Date.now();
+      
+      if (lastShown && (now - parseInt(lastShown)) < 5000) {
+        // Suppress duplicate notifications within 5 seconds across all tabs
+        console.log('Suppressed duplicate notification:', message);
+        return;
+      }
+      
+      // Store the timestamp to prevent duplicates
+      localStorage.setItem(notificationKey, now.toString());
+      
+      // Clean up old notification timestamps (older than 1 minute)
+      Object.keys(localStorage).forEach(key => {
+        if (key.startsWith('toast_')) {
+          const timestamp = parseInt(localStorage.getItem(key));
+          if (now - timestamp > 60000) {
+            localStorage.removeItem(key);
+          }
+        }
+      });
+      
       if (!document.getElementById('animationsToggle')?.checked) {
-        // If animations are disabled, use alert instead
+        // If animations are disabled, use alert instead - but only for errors
         if (type === 'error') {
           Swal.fire({
             title: 'Error',
@@ -604,15 +627,16 @@
             icon: 'error',
             confirmButtonText: 'OK'
           });
-        } else {
-          Swal.fire({
-            title: type.charAt(0).toUpperCase() + type.slice(1),
-            text: message,
-            icon: type === 'success' ? 'success' : 'info',
-            confirmButtonText: 'OK'
-          });
         }
+        // Suppress other alerts entirely when animations disabled
         return;
+      }
+      
+      // Adjust duration based on type - success toasts disappear faster
+      if (type === 'success') {
+        duration = Math.min(duration, 1500); // Max 1.5 seconds for success
+      } else if (type === 'info') {
+        duration = Math.min(duration, 2000); // Max 2 seconds for info
       }
       
       // Limit the number of toasts to 3
@@ -632,14 +656,19 @@
       if (type === 'error') icon = 'fa-exclamation-circle';
       if (type === 'warning') icon = 'fa-exclamation-triangle';
       
+      // Remove close button for success and info toasts since they auto-dismiss quickly
+      const showCloseButton = (type === 'error' || type === 'warning');
+      
       toast.innerHTML = `
         <div class="flex items-center gap-2 flex-1 justify-center">
           <i class="fa-solid ${icon} text-${type}"></i>
           <div class="font-medium">${message}</div>
         </div>
+        ${showCloseButton ? `
         <button class="btn btn-ghost btn-xs self-start" onclick="removeToast(this.parentElement)">
           <i class="fa-solid fa-times"></i>
         </button>
+        ` : ''}
       `;
       
       container.appendChild(toast);

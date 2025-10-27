@@ -53,7 +53,7 @@
     
     // Fallback to defaults if API fails
     function setDefaultFormats() {
-      ALLOWED_EXTENSIONS = ['.json', '.py', '.tpl', '.js', '.ts', '.sql', '.yml', '.svelte', '.md', '.tsx', '.yaml', '.tsx', '.css', '.html', '.sh', '.bat', '.txt', '.php', '.toml'];
+      ALLOWED_EXTENSIONS = ['.json', '.py', '.tpl', '.js', '.ts', '.sql', '.yml', '.svelte', '.md', '.jsx', '.yaml', '.tsx', '.css', '.html', '.sh', '.bat', '.txt', '.php', '.toml'];
       
       EXT_COLORS = {
         'json': '#4A55A7',
@@ -64,6 +64,7 @@
         'yml': '#6C3483',
         'yaml': '#6C3483',
         'tsx': '#3178C6',
+        'jsx': '#3178C6',
         'css': '#2965F1',
         'html': '#E34F26',
         'txt': '#5D6975',
@@ -1267,4 +1268,119 @@
     setTimeout(setupTooltips, 500);
   });
 </script>
-<script src="https://unpkg.com/gpt-tokenizer"></script>
+<script>
+  // Load GPT tokenizer only once and handle permissions properly
+  (function() {
+    // Prevent multiple loads
+    if (window.GPT_TOKENIZER_LOADED) return;
+    window.GPT_TOKENIZER_LOADED = true;
+    
+    const script = document.createElement('script');
+    script.src = 'https://unpkg.com/gpt-tokenizer';
+    script.async = true;
+    script.onload = function() {
+      console.log('GPT tokenizer loaded successfully');
+    };
+    script.onerror = function() {
+      console.warn('Failed to load GPT tokenizer - token counting may not work');
+    };
+    document.head.appendChild(script);
+  })();
+  
+  // Prevent browser notification permission requests entirely
+  if (window.Notification) {
+    const originalRequestPermission = Notification.requestPermission;
+    Notification.requestPermission = function() {
+      console.log('Blocked automatic notification permission request');
+      return Promise.resolve('denied');
+    };
+    
+    // Also prevent new Notification calls from requesting permissions
+    const OriginalNotification = window.Notification;
+    window.Notification = function(title, options) {
+      console.log('Blocked notification creation that might trigger permission request');
+      return null;
+    };
+    // Preserve static methods
+    Object.setPrototypeOf(window.Notification, OriginalNotification);
+    window.Notification.permission = 'denied';
+    window.Notification.requestPermission = function() {
+      return Promise.resolve('denied');
+    };
+  }
+  
+  // Prevent automatic permission requests and handle clipboard gracefully
+  window.CLIPBOARD_PERMISSION_CHECKED = sessionStorage.getItem('clipboard_checked') === 'true';
+  
+  async function checkClipboardPermission() {
+    if (window.CLIPBOARD_PERMISSION_CHECKED) return true;
+    
+    try {
+      // Check if we already have permission without triggering a prompt
+      if (navigator.permissions) {
+        const permission = await navigator.permissions.query({ name: 'clipboard-write' });
+        window.CLIPBOARD_PERMISSION_CHECKED = true;
+        sessionStorage.setItem('clipboard_checked', 'true');
+        return permission.state === 'granted';
+      }
+    } catch (e) {
+      // If permissions API isn't available, just proceed
+      window.CLIPBOARD_PERMISSION_CHECKED = true;
+      sessionStorage.setItem('clipboard_checked', 'true');
+    }
+    return true;
+  }
+  
+  // Override clipboard write to handle permissions gracefully
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    const originalWrite = navigator.clipboard.writeText;
+    navigator.clipboard.writeText = async function(text) {
+      // Check permission status first without triggering prompt
+      const hasPermission = await checkClipboardPermission();
+      
+      if (!hasPermission) {
+        // Use fallback method immediately if no permission
+        console.log('Using fallback clipboard method');
+        const textArea = document.createElement('textarea');
+        textArea.value = text;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-999999px';
+        textArea.style.opacity = '0';
+        document.body.appendChild(textArea);
+        textArea.select();
+        try {
+          const success = document.execCommand('copy');
+          if (!success) throw new Error('Copy command failed');
+        } catch (e) {
+          console.error('Fallback copy failed:', e);
+          throw e;
+        } finally {
+          document.body.removeChild(textArea);
+        }
+        return Promise.resolve();
+      }
+      
+      return originalWrite.call(this, text).catch(function(err) {
+        // Fallback to regular method if clipboard API fails
+        console.warn('Clipboard API failed, using fallback method');
+        const textArea = document.createElement('textarea');
+        textArea.value = text;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-999999px';
+        textArea.style.opacity = '0';
+        document.body.appendChild(textArea);
+        textArea.select();
+        try {
+          const success = document.execCommand('copy');
+          if (!success) throw new Error('Copy command failed');
+        } catch (e) {
+          console.error('Fallback copy failed:', e);
+          throw e;
+        } finally {
+          document.body.removeChild(textArea);
+        }
+        return Promise.resolve();
+      });
+    };
+  }
+</script>
