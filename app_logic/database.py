@@ -94,8 +94,9 @@ def init_db():
             ('.go', '#00ADD8', 'go', 1, 20, 0),
             ('.mod', '#00ADD8', 'go', 1, 21, 0),
             ('.sum', '#5D6975', '', 1, 22, 0),
+            ('.ipynb', '#F37726', 'json', 1, 23, 0),
             # Pattern formats - the language should be 'dockerfile' for proper highlighting
-            ('Dockerfile*', '#2496ED', 'dockerfile', 1, 23, 1)
+            ('Dockerfile*', '#2496ED', 'dockerfile', 1, 24, 1)
         ]
         c.executemany(
             "INSERT INTO file_formats (extension, color, language, enabled, display_order, is_pattern) VALUES (?, ?, ?, ?, ?, ?)",
