@@ -47,11 +47,14 @@ def local_tree():
     repo_id = c.execute("SELECT id FROM repositories WHERE identifier = ?", (local_path,)).fetchone()[0]
 
     c.execute("DELETE FROM files WHERE repo_id = ?", (repo_id,))
-    skip_dirs = {".venv", "node_modules", ".git", ".vscode", ".evidence", "target"}
+    skip_dirs = {".venv", "node_modules", ".git", ".vscode", ".evidence", ".nx", "target", "dist"}
+    skip_files = {"pnpm-lock.yaml"}
     files_to_insert = []
     for root, dirs, files in os.walk(local_path):
         dirs[:] = [d for d in dirs if d not in skip_dirs]
         for filename in files:
+            if filename in skip_files:
+                continue
             rel_path = os.path.relpath(os.path.join(root, filename), start=local_path).replace("\\", "/")
             files_to_insert.append((repo_id, rel_path, "local", None))
 
