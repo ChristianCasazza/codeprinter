@@ -102,7 +102,9 @@ def init_db():
             ('Dockerfile*', '#2496ED', 'dockerfile', 1, 27, 1),
             ('Makefile*', '#6D7E8A', 'makefile', 1, 28, 1),
             ('_redirects', '#FF6B6B', 'plaintext', 1, 29, 1),
-            ('_headers', '#4ECDC4', 'plaintext', 1, 30, 1)
+            ('_headers', '#4ECDC4', 'plaintext', 1, 30, 1),
+            ('.rs', '#DEA584', 'rust', 1, 31, 0),
+            ('.test', '#5D6975', '', 1, 32, 0)
         ]
         c.executemany(
             "INSERT INTO file_formats (extension, color, language, enabled, display_order, is_pattern) VALUES (?, ?, ?, ?, ?, ?)",
